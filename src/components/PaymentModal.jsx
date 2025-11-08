@@ -20,6 +20,8 @@ function PaymentModal({ show, handleClose, grandTotal }) {
             const script = document.createElement('script');
             script.src = "https://checkout.razorpay.com/v1/checkout.js";
             script.async = true;
+            script.onload = () => console.log("Razorpay SDK loaded");
+            script.onerror = () => alert("Failed to load Razorpay SDK. Please check your internet connection.");
             document.body.appendChild(script);
         }
     }, []);
