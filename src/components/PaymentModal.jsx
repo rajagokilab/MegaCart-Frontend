@@ -2,60 +2,71 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { getAuthToken, getCachedUser, logout } from './auth'; 
-import { useNavigate } from 'react-router-dom'; // 🛑 1. Import useNavigate
+import { getAuthToken, getCachedUser } from './auth'; 
+import { useNavigate } from 'react-router-dom';
 
 const RAZORPAY_KEY_ID = 'rzp_test_Rc49M6OPR7fOLP'; 
 const API = import.meta.env.VITE_API_URL;
 const ORDER_CREATE_URL = `${API}/orders/create/`;
 const VERIFY_PAYMENT_URL = `${API}/orders/verify/`;
 
-
-function PaymentModal({ show, handleClose, grandTotal, setShowLogin }) {
+function PaymentModal({ show, handleClose, grandTotal }) {
     const [isProcessing, setIsProcessing] = useState(false);
-    const navigate = useNavigate(); // 🛑 3. Initialize navigate
-    
-    // ... (useEffect for loading script remains the same)
+    const navigate = useNavigate();
+
+    // Load Razorpay script
+    useEffect(() => {
+        if (!window.Razorpay) {
+            const script = document.createElement('script');
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.async = true;
+            document.body.appendChild(script);
+        }
+    }, []);
 
     const handleInitiatePayment = async () => {
         setIsProcessing(true);
-        
+
         if (!window.Razorpay) {
             alert('Razorpay SDK not loaded. Please try again.');
             setIsProcessing(false);
             return;
         }
-        
-        try {
-            // ... (Code to create order remains the same)
 
+        try {
             const authToken = getAuthToken();
-            // ... (fetch orderResponse)
-            
-            if (!orderResponse.ok) {
-                 // ... (401 error handling remains the same)
+            const response = await fetch(ORDER_CREATE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(authToken ? { Authorization: `JWT ${authToken}` } : {}),
+                },
+                body: JSON.stringify({ amount: grandTotal })
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    alert('Your session has expired. Please log in again.');
+                    setIsProcessing(false);
+                    return;
+                }
+                throw new Error('Failed to create order.');
             }
 
-            const orderData = await orderResponse.json();
+            const orderData = await response.json();
             const { razorpay_order_id, amount, currency } = orderData;
-            
             const user = getCachedUser();
 
             const options = {
-                key: RAZORPAY_KEY_ID, 
-                amount: amount, 
-                currency: currency, 
+                key: RAZORPAY_KEY_ID,
+                amount,
+                currency,
                 name: 'MegaCart E-commerce',
                 description: 'Order Payment',
-                order_id: razorpay_order_id, 
-                
-                // 🛑 4. UPDATE THE HANDLER FUNCTION 🛑
+                order_id: razorpay_order_id,
                 handler: async function (response) {
-                    setIsProcessing(true); // Keep processing spinner on
-                    
-                    // Send verification data to your backend
                     try {
-                        const verificationResponse = await fetch(VERIFY_PAYMENT_URL, {
+                        const verifyResponse = await fetch(VERIFY_PAYMENT_URL, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -68,30 +79,25 @@ function PaymentModal({ show, handleClose, grandTotal, setShowLogin }) {
                             })
                         });
 
-                        if (!verificationResponse.ok) {
-                            throw new Error('Payment verification failed on server.');
-                        }
-                        
-                        // Payment successful and verified!
+                        if (!verifyResponse.ok) throw new Error('Payment verification failed.');
+
                         alert('Payment Successful! Your order has been placed.');
                         handleClose();
-                        navigate('/my-orders'); // Redirect to order tracking page
-
-                    } catch (verifyError) {
-                        alert(`Payment verification failed: ${verifyError.message}. Please contact support.`);
+                        navigate('/my-orders');
+                    } catch (err) {
+                        alert(`Payment verification failed: ${err.message}`);
                         setIsProcessing(false);
                     }
                 },
                 prefill: {
-                    name: user?.username || 'Customer', 
-                    email: user?.email || '',
+                    name: user?.username || 'Customer',
+                    email: user?.email || ''
                 },
                 theme: {
-                    color: '#82a4eeff'
+                    color: '#82a4ee'
                 },
                 modal: {
                     ondismiss: function() {
-                        // This function is called when user closes the modal
                         setIsProcessing(false);
                     }
                 }
@@ -102,40 +108,29 @@ function PaymentModal({ show, handleClose, grandTotal, setShowLogin }) {
                 alert(`Payment failed: ${response.error.description}`);
                 setIsProcessing(false);
             });
-            
-            rzp.open();
-            // We set isProcessing to false here ONLY if rzp.open() fails
-            // It's handled by modal.ondismiss or handler now.
 
+            rzp.open();
         } catch (error) {
             console.error('Error initiating payment:', error);
-            if (error.message !== 'Your session has expired. Please log in again to complete the payment.') {
-                 alert(error.message || 'Failed to initiate payment. Please try again.');
-            }
-            setIsProcessing(false); // Make sure to stop processing on error
-        } 
-        // DO NOT set isProcessing(false) in a finally block here
-        // The modal is now open, so handler/ondismiss will control the state.
+            alert(error.message || 'Failed to initiate payment. Please try again.');
+            setIsProcessing(false);
+        }
     };
 
     const displayAmount = grandTotal.toFixed(2);
-    
+
     return (
-        // ... (Your Modal JSX remains the same)
         <Modal show={show} onHide={handleClose} centered>
             <Modal.Header closeButton>
                 <Modal.Title className="fw-bold">Payment Page</Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-4">
-                
-                <div className="text-center mb-4 p-3 rounded" style={{ 
+                <div className="text-center mb-4 p-4 rounded" style={{ 
                     background: 'linear-gradient(to right, #FFDAB9, #FFC0CB)',
-                    color: '#4B0082' 
+                    color: '#4B0082'
                 }}>
                     <h5 className="mb-0">Total Amount:</h5>
-                    <h1 className="fw-bolder" style={{ fontSize: '2.5rem' }}>
-                        ₹{displayAmount}
-                    </h1>
+                    <h1 className="fw-bolder text-3xl">₹{displayAmount}</h1>
                 </div>
 
                 <p className="text-center text-muted small">
@@ -145,14 +140,13 @@ function PaymentModal({ show, handleClose, grandTotal, setShowLogin }) {
                 <div className="d-grid gap-2">
                     <Button 
                         onClick={handleInitiatePayment} 
-                        className="btn-lg mt-4" 
-                        style={{ backgroundColor: '#9ac2deff', borderColor: '#EE82EE', fontWeight: 'bold' }}
-                        disabled={isProcessing} 
+                        className="btn-lg mt-4 fw-bold" 
+                        style={{ backgroundColor: '#9ac2de', borderColor: '#EE82EE' }}
+                        disabled={isProcessing}
                     >
                         {isProcessing ? 'Processing Order...' : `Pay ₹${displayAmount} Now`}
                     </Button>
                 </div>
-
             </Modal.Body>
         </Modal>
     );
