@@ -1,0 +1,208 @@
+/* ================================================================
+   GLOBAL BASE STYLES
+================================================================ */
+
+/* Sidebar Navigation */
+.nav-mypage .nav-link {
+    color: #495057;
+    margin-bottom: 5px;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Hover + Active Animation */
+.nav-mypage .nav-link.active,
+.nav-mypage .nav-link:hover {
+    background-color: #e8f5e9; /* soft green */
+    color: #198754 !important; /* bootstrap success */
+    transform: translateX(3px);
+    border-radius: 6px;
+}
+
+/* My Orders link hover */
+.nav-mypage .nav-link.text-dark:hover {
+    background-color: #f8f9fa;
+    color: #000 !important;
+    transform: translateX(3px);
+}
+
+
+/* ================================================================
+   ADMIN THEME
+   Colors: Orange, Black, Green, Yellow
+================================================================ */
+
+.admin-theme {
+    background-color: #fff7e6 !important; /* light orange background */
+    min-height: 100vh;
+}
+
+/* Admin Cards */
+.admin-theme .card {
+    border: 2px solid #ff8800 !important;
+    border-radius: 10px;
+}
+
+/* Admin Sidebar Active */
+.admin-theme .nav-pills .nav-link.active {
+    background-color: #ff8800 !important;
+    color: black !important;
+}
+
+/* Sidebar Links */
+.admin-theme .nav-link {
+    color: black !important;
+}
+
+/* Headings */
+.admin-theme h2,
+.admin-theme h3,
+.admin-theme h5 {
+    color: #ff8800 !important;
+}
+
+/* Admin Badge */
+.admin-theme .badge.bg-danger,
+.admin-theme .badge.bg-warning,
+.admin-theme .badge.bg-primary {
+    background-color: #ffbb00 !important; /* yellow */
+    color: black !important;
+}
+
+/* Admin Buttons */
+.admin-theme .btn-primary {
+    background-color: #ff8800 !important;
+    border-color: #ff8800 !important;
+}
+
+.admin-theme .btn-danger {
+    background-color: #cc0000 !important;
+}
+
+/* Modal Theme */
+.admin-theme .modal-content {
+    border: 2px solid #ff8800;
+}
+
+/* Alerts */
+.admin-theme .alert {
+    border-left: 5px solid #ff8800;
+}
+
+
+/* ================================================================
+   VENDOR THEME
+   Colors: Green, Yellow, Blue, Purple
+================================================================ */
+
+.vendor-theme {
+    background-color: #eef7ff !important; /* soft blue */
+    min-height: 100vh;
+}
+
+/* Vendor Cards */
+.vendor-theme .card {
+    border: 2px solid #007bff !important; /* blue */
+    border-radius: 10px;
+}
+
+/* Active Sidebar */
+.vendor-theme .nav-pills .nav-link.active {
+    background-color: #28a745 !important; /* green */
+    color: white !important;
+}
+
+/* Sidebar Links */
+.vendor-theme .nav-link {
+    color: #4b0082 !important; /* purple */
+}
+
+/* Headings */
+.vendor-theme h2,
+.vendor-theme h3,
+.vendor-theme h5 {
+    color: #4b0082 !important;
+}
+
+/* Vendor Badge */
+.vendor-theme .badge {
+    background-color: #ffc107 !important; /* yellow */
+    color: black !important;
+}
+
+/* Buttons */
+.vendor-theme .btn-primary {
+    background-color: #007bff !important; /* blue */
+    border-color: #007bff !important;
+}
+
+.vendor-theme .btn-success {
+    background-color: #28a745 !important; /* green */
+}
+
+/* Modals */
+.vendor-theme .modal-content {
+    border: 2px solid #28a745;
+}
+
+/* Alerts */
+.vendor-theme .alert {
+    border-left: 5px solid #28a745;
+}
+
+
+/* ================================================================
+   CUSTOMER THEME
+   Colors: Dark Blue, Green
+================================================================ */
+
+.customer-theme {
+    background-color: #e6f2ff !important; /* light blue */
+    min-height: 100vh;
+}
+
+/* Cards */
+.customer-theme .card {
+    border: 2px solid #003366 !important; /* dark blue */
+    border-radius: 10px;
+}
+
+/* Active Sidebar */
+.customer-theme .nav-pills .nav-link.active {
+    background-color: #28a745 !important; /* green */
+    color: white !important;
+}
+
+/* Sidebar Text */
+.customer-theme .nav-link {
+    color: #003366 !important; /* dark blue */
+}
+
+/* Headings */
+.customer-theme h2,
+.customer-theme h3,
+.customer-theme h5 {
+    color: #003366 !important;
+}
+
+/* Badges */
+.customer-theme .badge {
+    background-color: #003366 !important;
+    color: white !important;
+}
+
+/* Buttons */
+.customer-theme .btn-primary {
+    background-color: #003366 !important;
+    border-color: #003366 !important;
+}
+
+/* Modals */
+.customer-theme .modal-content {
+    border: 2px solid #003366;
+}
+
+/* Alerts */
+.customer-theme .alert {
+    border-left: 5px solid #003366;
+}

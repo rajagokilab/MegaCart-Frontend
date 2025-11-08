@@ -1,0 +1,60 @@
+/* src/components/ProductDetails.css */
+
+/* --- Theme Colors --- */
+.text-brand-blue {
+  color: #0055A0 !important;
+}
+
+.text-brand-green {
+  color: #28a745 !important;
+}
+
+/* --- Brand Buttons --- */
+.btn-brand-blue {
+  background-color: #0055A0;
+  border-color: #0055A0;
+  color: #ffffff;
+}
+.btn-brand-blue:hover {
+  background-color: #004480; /* Darker blue */
+  border-color: #004480;
+  color: #ffffff;
+}
+
+.btn-brand-green {
+  background-color: #28a745;
+  border-color: #28a745;
+  color: #ffffff;
+}
+.btn-brand-green:hover {
+  background-color: #228b3d; /* Darker green */
+  border-color: #228b3d;
+  color: #ffffff;
+}
+
+/* --- Component Styles --- */
+
+/* This makes the main buy box white against the pistachio body */
+.buy-box {
+  background-color: #ffffff;
+}
+
+/* Makes list-group-flush items transparent inside the white box */
+.spec-list .list-group-item {
+  background-color: transparent;
+}
+
+/* Makes review cards white */
+.review-card,
+.review-list-item {
+  background-color: #ffffff;
+}
+
+/* Hover effect for suggestion cards */
+.transition-hover {
+  transition: all 0.3s ease;
+}
+.transition-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}

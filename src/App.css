@@ -1,0 +1,95 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+/* Light pista green theme */
+body {
+    background-color: #e6f2e6; /* very light pista green */
+    color: #2f4f2f; /* dark green text for readability */
+}
+
+.container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.card {
+    background-color: #f0fff0; /* lighter greenish card */
+    border: 1px solid #c3e6cb;
+}
+
+.card .card-body {
+    color: #2f4f2f;
+}
+
+.btn-success {
+    background-color: #a3d9a5;
+    border-color: #8ccf8c;
+    color: #1a3d1a;
+}
+
+.btn-success:hover {
+    background-color: #8ccf8c;
+    border-color: #77b377;
+}
+
+.filter-sidebar {
+    background-color: #f0fff0;
+    border: 1px solid #c3e6cb;
+}
+
+.page-link {
+    background-color: #d4edda;
+    color: #2f4f2f;
+    border: 1px solid #c3e6cb;
+}
+
+.page-link:hover {
+    background-color: #c3e6cb;
+    color: #1a3d1a;
+}
+
+.alert-info, .alert-secondary {
+    background-color: #d4edda;
+    color: #2f4f2f;
+    border-color: #c3e6cb;
+}
+
