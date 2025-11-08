@@ -36,11 +36,17 @@ function ProductDetails() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(!!getAuthToken());
 
-  const API_URL = `${import.meta.env.VITE_API_URL}/products/`;
-  const PRODUCT_DETAIL_URL = `${API_URL_BASE}/${id}/`;
-  const SUGGESTIONS_URL = `${API_URL_BASE}/${id}/suggestions/`;
-  const API_CART_ADD_URL = `${import.meta.env.VITE_API_URL}/cart/add_item/`;
-  const REVIEW_POST_URL = `${API_URL_BASE}/${id}/reviews/`;
+  const API_BASE = import.meta.env.VITE_API_URL;
+
+// ✅ Product endpoints
+const PRODUCT_URL_BASE = `${API_BASE}/products`;
+
+// ✅ Product detail + suggestions + reviews
+const PRODUCT_DETAIL_URL = `${PRODUCT_URL_BASE}/${id}/`;
+const SUGGESTIONS_URL = `${PRODUCT_URL_BASE}/${id}/suggestions/`;
+const REVIEW_POST_URL = `${PRODUCT_URL_BASE}/${id}/reviews/`;
+
+const CART_ADD_URL = `${API_BASE}/cart/add_item/`;
 
   // Fetch product
   const fetchProduct = async () => {
