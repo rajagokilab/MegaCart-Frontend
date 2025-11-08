@@ -15,18 +15,22 @@ import { useUser } from '../context/UserContext.jsx';
 import "./MyPage.css";
 
 // --- API Endpoints ---
-const VENDOR_PRODUCTS_URL = 'http://127.0.0.1:8000/api/products/';
-const DASHBOARD_URL = 'http://127.0.0.1:8000/api/vendor/dashboard/';
-const VENDOR_ORDERS_URL = 'http://127.0.0.1:8000/api/orders/vendor/'; 
-const STATUS_UPDATE_URL = 'http://127.0.0.1:8000/api/orders/update_status/'; 
+const API = import.meta.env.VITE_API_URL;
 
-// --- NEW ADMIN API Endpoints ---
-const ADMIN_DASHBOARD_URL = 'http://127.0.0.1:8000/api/admin/dashboard/';
-const ADMIN_VENDORS_URL = 'http://127.0.0.1:8000/api/admin/vendors/';
-const ADMIN_APPROVE_VENDOR_URL = 'http://127.0.0.1:8000/api/admin/vendors/approve/';
-const ADMIN_ALL_PRODUCTS_URL = 'http://127.0.0.1:8000/api/admin/all-products/';
-const ADMIN_ALL_ORDERS_URL = 'http://127.0.0.1:8000/api/orders/admin/all/';
-const ADMIN_CATEGORIES_URL = 'http://127.0.0.1:8000/api/categories/';
+// Vendor
+const VENDOR_PRODUCTS_URL = `${API}/products/`;
+const DASHBOARD_URL = `${API}/vendor/dashboard/`;
+const VENDOR_ORDERS_URL = `${API}/orders/vendor/`;
+const STATUS_UPDATE_URL = `${API}/orders/update_status/`;
+
+// Admin
+const ADMIN_DASHBOARD_URL = `${API}/admin/dashboard/`;
+const ADMIN_VENDORS_URL = `${API}/admin/vendors/`;
+const ADMIN_APPROVE_VENDOR_URL = `${API}/admin/vendors/approve/`;
+const ADMIN_ALL_PRODUCTS_URL = `${API}/admin/all-products/`;
+const ADMIN_ALL_ORDERS_URL = `${API}/orders/admin/all/`;
+const ADMIN_CATEGORIES_URL = `${API}/categories/`;
+
 
 // Status transitions for vendors
 const STATUS_TRANSITIONS = {
