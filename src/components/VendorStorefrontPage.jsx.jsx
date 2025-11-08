@@ -13,7 +13,7 @@ import { renderStars } from '../utils/renderStars.jsx';
 // --- API URL Constants ---
 // ------------------------------------------------------------------
 // These URLs MUST match the paths you define in your Django urls.py
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = import.meta.env.VITE_API_URL;
 const API_URL_BASE = `${API_BASE}/vendor`; // Base path for all vendor storefront calls
 
 function VendorStorefrontPage() {

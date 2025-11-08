@@ -36,10 +36,10 @@ function ProductDetails() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(!!getAuthToken());
 
-  const API_URL_BASE = 'http://127.0.0.1:8000/api/products';
+  const API_URL = `${import.meta.env.VITE_API_URL}/products/`;
   const PRODUCT_DETAIL_URL = `${API_URL_BASE}/${id}/`;
   const SUGGESTIONS_URL = `${API_URL_BASE}/${id}/suggestions/`;
-  const CART_ADD_URL = 'http://127.0.0.1:8000/api/cart/add_item/';
+  const API_CART_ADD_URL = `${import.meta.env.VITE_API_URL}/cart/add_item/`;
   const REVIEW_POST_URL = `${API_URL_BASE}/${id}/reviews/`;
 
   // Fetch product

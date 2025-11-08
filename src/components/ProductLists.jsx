@@ -24,7 +24,7 @@ const renderStars = (rating) => {
 };
 
 const GUEST_CART_ID_KEY = 'guestCartId';
-const API_CART_ADD_URL = 'http://127.0.0.1:8000/api/cart/add_item/';
+const API_CART_ADD_URL = `${import.meta.env.VITE_API_URL}/cart/add_item/`;
 
 const getOrCreateGuestCartId = () => {
     let guestId = localStorage.getItem(GUEST_CART_ID_KEY);
@@ -44,7 +44,8 @@ function ProductList({ onLoginClick }) {
     });
     const [currentPage, setCurrentPage] = useState(1);
     const productsPerPage = 12;
-    const API_URL = 'http://127.0.0.1:8000/api/products/';
+    const API_URL = `${import.meta.env.VITE_API_URL}/products/`;
+    
 
     const handleFilterChange = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
