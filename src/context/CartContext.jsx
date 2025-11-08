@@ -3,7 +3,7 @@ import { getAuthToken } from '../components/auth'; // Adjust path if needed
 
 // --- Constants ---
 const GUEST_CART_ID_KEY = 'guestCartId';
-const API_BASE = 'http://127.0.0.1:8000/api/cart';
+const API_BASE = `${import.meta.env.VITE_API_URL}/cart`;
 
 const CartContext = createContext();
 
