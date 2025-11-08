@@ -8,7 +8,8 @@ import {
 import { getAuthToken } from './auth';
 import { useUser } from '../context/UserContext.jsx'; 
 
-const MY_ORDERS_URL = 'http://127.0.0.1:8000/api/orders/my-orders/';
+const API = import.meta.env.VITE_API_URL;
+const MY_ORDERS_URL = `${API}/orders/my-orders/`;
 
 // Helper function to map status to an icon and color
 const getStatusData = (status) => {

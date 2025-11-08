@@ -6,8 +6,10 @@ import { getAuthToken, getCachedUser, logout } from './auth';
 import { useNavigate } from 'react-router-dom'; // 🛑 1. Import useNavigate
 
 const RAZORPAY_KEY_ID = 'rzp_test_Rc49M6OPR7fOLP'; 
-const ORDER_CREATE_URL = 'http://127.0.0.1:8000/api/orders/create/';
-const VERIFY_PAYMENT_URL = 'http://127.0.0.1:8000/api/orders/verify/'; // 🛑 2. Add Verification URL
+const API = import.meta.env.VITE_API_URL;
+const ORDER_CREATE_URL = `${API}/orders/create/`;
+const VERIFY_PAYMENT_URL = `${API}/orders/verify/`;
+
 
 function PaymentModal({ show, handleClose, grandTotal, setShowLogin }) {
     const [isProcessing, setIsProcessing] = useState(false);

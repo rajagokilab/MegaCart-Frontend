@@ -40,6 +40,7 @@ import { Bar } from 'react-chartjs-2';
 import { getAuthToken } from "../components/auth";
 import { useUser } from "../context/UserContext";
 
+
 // Register Chart.js components
 ChartJS.register(
     CategoryScale,
@@ -51,13 +52,18 @@ ChartJS.register(
 );
 
 // ✅ API endpoints
-const ADMIN_DASHBOARD_URL = "http://127.0.0.1:8000/api/admin/dashboard/";
-const ADMIN_VENDORS_URL = "http://127.0.0.1:8000/api/admin/vendors/";
-const ADMIN_APPROVE_VENDOR_URL = "http://127.0.0.1:8000/api/admin/vendors/approve/";
-const ADMIN_ALL_PRODUCTS_URL = "http://127.0.0.1:8000/api/admin/all-products/";
-const ADMIN_ALL_ORDERS_URL = "http://127.0.0.1:8000/api/orders/admin/all/";
-const ADMIN_CATEGORIES_URL = "http://127.0.0.1:8000/api/categories/";
-const ADMIN_SUPPORT_MESSAGES_URL = "http://127.0.0.1:8000/api/admin/support-messages/";
+// ✅ Use VITE_API_URL for dynamic backend switching
+const API = import.meta.env.VITE_API_URL;
+
+// ✅ Admin API endpoints
+const ADMIN_DASHBOARD_URL = `${API}/admin/dashboard/`;
+const ADMIN_VENDORS_URL = `${API}/admin/vendors/`;
+const ADMIN_APPROVE_VENDOR_URL = `${API}/admin/vendors/approve/`;
+const ADMIN_ALL_PRODUCTS_URL = `${API}/admin/all-products/`;
+const ADMIN_ALL_ORDERS_URL = `${API}/orders/admin/all/`;
+const ADMIN_CATEGORIES_URL = `${API}/categories/`;
+const ADMIN_SUPPORT_MESSAGES_URL = `${API}/admin/support-messages/`;
+
 
 
 // 💰 3. Chart Helper Component

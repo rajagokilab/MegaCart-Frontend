@@ -5,7 +5,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChartBar, faClipboardList, faRupeeSign, faBoxOpen, faUsers, faPlus, faList } from '@fortawesome/free-solid-svg-icons';
 import { getCachedUser, getAuthToken } from './auth';
 
-const DASHBOARD_URL = 'http://127.0.0.1:8000/api/vendor/dashboard/';
+const API = import.meta.env.VITE_API_URL;
+const DASHBOARD_URL = `${API}/vendor/dashboard/`;
 
 function VendorDashboard() {
     const navigate = useNavigate();

@@ -9,12 +9,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock, faCreditCard, faTruck, faUserCheck, faWallet, faMapMarkerAlt, faEdit, faSave } from '@fortawesome/free-solid-svg-icons'; 
 
 // --- Constants ---
+const API = import.meta.env.VITE_API_URL;
 const GUEST_CART_ID_KEY = 'guestCartId';
-const CART_DETAIL_URL = 'http://127.0.0.1:8000/api/cart/detail/';
+
 const RAZORPAY_KEY_ID = 'rzp_test_Rc49M6OPR7fOLP'; 
-const ORDER_CREATE_URL = 'http://127.0.0.1:8000/api/orders/create/';
-const VERIFY_PAYMENT_URL = 'http://127.0.0.1:8000/api/orders/verify/'; 
-const USER_ADDRESS_SAVE_URL = 'http://127.0.0.1:8000/api/users/save_address/';
+const CART_DETAIL_URL = `${API}/cart/detail/`;
+const ORDER_CREATE_URL = `${API}/orders/create/`;
+const VERIFY_PAYMENT_URL = `${API}/orders/verify/`;
+const USER_ADDRESS_SAVE_URL = `${API}/users/save_address/`;
 
 
 // ------------------------------------------------------------------
