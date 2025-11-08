@@ -13,6 +13,8 @@ import {
 import { getCachedUser } from './auth';
 import { useCart } from '../context/CartContext.jsx';
 
+const API_BASE = import.meta.env.VITE_API_URL;
+
 // 💰 --- 1. IMPORT YOUR LOGO ---
 import appLogo from '../assets/logo.jpg'; // Make sure this path is correct
 
@@ -43,7 +45,9 @@ function Navbar({ onLoginClick }) {
         }
         const timerId = setTimeout(async () => {
             try {
-                const response = await fetch(`http://127.0.0.1:8000/api/products/?search=${searchTerm.trim()}&limit=5`);
+const response = await fetch(
+    `${API_BASE}/products/?search=${encodeURIComponent(searchTerm.trim())}&limit=5`
+);
                 const data = await response.json();
                 setSuggestions(data.results || data);
             } catch (error) {

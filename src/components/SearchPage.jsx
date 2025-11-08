@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Container, Row, Col, Card, Spinner, Alert, Button } from 'react-bootstrap'; // Added Button
 
+const API = import.meta.env.VITE_API_URL;
+
 // A simple card to display a product. 
 const ProductCard = ({ product }) => (
     <Col md={4} lg={3} className="mb-4">
@@ -39,7 +41,7 @@ function SearchPage() {
             setLoading(true);
             try {
                 // This is your backend search endpoint
-                const response = await fetch(`http://127.0.0.1:8000/api/products/?search=${query}`);
+                const response = await fetch(`${API}/products/?search=${query}`);
                 const data = await response.json();
                 setProducts(data.results || data); 
             } catch (error) {

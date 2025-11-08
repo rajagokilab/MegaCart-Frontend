@@ -4,8 +4,10 @@ import { Container, Form, Button, Alert, Spinner, Card, Row, Col } from 'react-b
 import { getAuthToken } from './auth';
 
 
-const PRODUCTS_URL = 'http://127.0.0.1:8000/api/products/';
-const CATEGORIES_URL = 'http://127.0.0.1:8000/api/categories/'; // Assuming this endpoint exists
+const API = import.meta.env.VITE_API_URL;
+
+const PRODUCTS_URL = `${API}/products/`;
+const CATEGORIES_URL = `${API}/categories/`; // Assuming this endpoint exists
 
 function ProductCreateForm() {
     const navigate = useNavigate();
