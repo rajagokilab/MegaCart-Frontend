@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Accordion, Form, Button, Alert } from 'react-bootstrap';
 import axios from 'axios';
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const faqs = [
     {
@@ -35,17 +36,17 @@ function Help() {
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            await axios.post('http://localhost:8000/api/support/create/', formData);
-            setSuccess(true);
-            setError('');
-            setFormData({ name: '', email: '', message: '' });
-        } catch (err) {
-            setError('Something went wrong. Please try again.');
-            setSuccess(false);
-        }
-    };
+    e.preventDefault();
+    try {
+        await axios.post(`${API_BASE}/support/create/`, formData);
+        setSuccess(true);
+        setError('');
+        setFormData({ name: '', email: '', message: '' });
+    } catch (err) {
+        setError('Something went wrong. Please try again.');
+        setSuccess(false);
+    }
+};
 
     const filteredFaqs = faqs
         .map(category => ({
