@@ -612,8 +612,7 @@ function CheckoutPage() {
                         <h4 className="fw-bold mb-4">Order Summary</h4>
                         
                         <ListGroup variant="flush">
-                            {cartItems.map(item => (
-                                <ListGroup.Item key={item.id} className="d-flex align-items-center px-0 py-3">
+                           {cartItems.map(item => (<ListGroup.Item key={item.id} className="d-flex align-items-center px-0 py-3">
                                     
                                     <img 
                                         src={item.product_details?.image_url || 'https://placehold.co/60x60?text=Item'} 

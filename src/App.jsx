@@ -22,7 +22,7 @@ import SearchPage from './components/SearchPage.jsx';
 import VendorDashboard from './components/VendorDashboard.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import ProductCreateForm from './components/ProductCreateForm.jsx';
-// import ProductEditForm from './components/ProductEditForm.jsx'; 
+import ProductEditForm from './components/ProductEditForm.jsx'; 
 
 
 // 1. ✅ IMPORT THE NEW COMPONENT
@@ -73,7 +73,7 @@ function AppContent() {
                     <Route path="/vendor/dashboard" element={<VendorDashboard />} />
                     <Route path="/admin/dashboard" element={<AdminDashboard />} />
                     <Route path="/vendor/products/new" element={<ProductCreateForm />} />
-                    {/* <Route path="/vendor/products/edit/:id" element={<ProductEditForm />} /> */}
+                    <Route path="/vendor/products/edit/:id" element={<ProductEditForm />} />
                     <Route path="/vendor/:vendorId" element={<VendorStorefrontPage />} />
                     
 

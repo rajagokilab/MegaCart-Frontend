@@ -292,6 +292,7 @@ function MyPage({ onLoginClick }) {
             setProductsLoading(false);
         }
     };
+    
 
     const fetchVendorOrders = async () => {
         if (!isVendor) return;

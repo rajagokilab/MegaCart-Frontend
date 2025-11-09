@@ -162,6 +162,7 @@ function VendorDashboard() {
             </div>
         </Container>
     );
+    
 }
 
 export default VendorDashboard;

@@ -68,44 +68,58 @@ function ProductCreateForm() {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setMessage(null);
-        
-        try {
-            if (!formData.name || !formData.price || !formData.stock || !formData.category) {
-                throw new Error("Please fill in all required fields.");
-            }
-            
-            const response = await fetch(PRODUCTS_URL, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(formData),
-            });
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
 
-            if (!response.ok) {
-                let errorText = 'Failed to create product.';
-                try {
-                    const errorData = await response.json();
-                    errorText = errorData.name?.[0] || errorData.category?.[0] || errorData.detail || errorText;
-                } catch (e) {
-                    errorText = "Server Error. Check console or backend logs.";
-                }
-                throw new Error(errorText);
-            }
-
-            setMessage({ type: 'success', text: 'Product submitted successfully! It is now pending admin approval.' });
-            
-            setFormData({ name: '', price: '', stock: '', image_url: '', category: categories[0]?.id || '' });
-            
-            setTimeout(() => navigate('/vendor/dashboard'), 2000); 
-
-        } catch (err) {
-            setMessage({ type: 'danger', text: err.message });
-        } finally {
-            setLoading(false);
+    try {
+        if (!formData.name || !formData.price || !formData.stock || !formData.category) {
+            throw new Error("Please fill all required fields.");
         }
-    };
+
+        // ✅ Build payload exactly how Django expects it
+        const payload = {
+            name: formData.name.trim(),
+            price: parseFloat(formData.price),
+            stock: parseInt(formData.stock, 10),
+            category: parseInt(formData.category, 10),
+        };
+
+        const response = await fetch(PRODUCTS_URL, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.log("Backend error:", data);
+            throw new Error(
+                data.name?.[0] ||
+                data.price?.[0] ||
+                data.stock?.[0] ||
+                data.image?.[0] ||
+                data.category?.[0] ||
+                data.detail ||
+                "Failed to create product."
+            );
+        }
+
+        setMessage({
+            type: 'success',
+            text: 'Product submitted successfully! Pending admin approval.',
+        });
+
+        setTimeout(() => navigate('/vendor/dashboard'), 1500);
+
+    } catch (err) {
+        setMessage({ type: 'danger', text: err.message });
+    } finally {
+        setLoading(false);
+    }
+};
+
     
     // Show spinner if categories are still loading
     if (categoriesLoading) {
