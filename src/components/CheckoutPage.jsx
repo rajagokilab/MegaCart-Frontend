@@ -476,9 +476,9 @@ function CheckoutPage() {
                                 <FontAwesomeIcon icon={faLock} className="me-3 fs-4" />
                                 <div>
                                     You are checking out as a **Guest**. Please log in to save your details.
-                                    <Button variant="outline-warning" size="sm" className="ms-3 fw-bold" onClick={() => setShowLogin(true)}>
+                                    {/* <Button variant="outline-warning" size="sm" className="ms-3 fw-bold" onClick={() => setShowLogin(true)}>
                                         Log In / Register
-                                    </Button>
+                                    </Button> */}
                                 </div>
                             </Alert>
                         ) : (
