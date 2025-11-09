@@ -155,12 +155,12 @@ const CART_ADD_URL = `${API_BASE}/cart/add_item/`;
     }
   };
 
-  const handleBuyNow = async () => {
-    const success = await submitCartItem();
-    if (success) {
-      navigate('/checkout'); // Navigate to /checkout on success
-    }
-  };
+  const handleBuyNow = () => {
+  navigate('/checkout', { 
+    state: { checkoutItems: [{ product_details: product, quantity }] } 
+  });
+};
+
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();

@@ -7,7 +7,15 @@ import LoginFormModal from './LoginFormModal.jsx';
 import { getCachedUser, getAuthToken, logout } from './auth'; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock, faCreditCard, faTruck, faUserCheck, faWallet, faMapMarkerAlt, faEdit, faSave } from '@fortawesome/free-solid-svg-icons'; 
+import { useLocation } from 'react-router-dom';
 
+const calculateGrandTotal = (items) => {
+    return items.reduce((sum, item) => {
+        const price = item.product_details?.price || 0;
+        const quantity = item.quantity || 1;
+        return sum + price * quantity;
+    }, 0);
+};
 // --- Constants ---
 const API = import.meta.env.VITE_API_URL;
 const GUEST_CART_ID_KEY = 'guestCartId';
@@ -211,6 +219,7 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
 
 function CheckoutPage() {
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [cart, setCart] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -285,20 +294,27 @@ function CheckoutPage() {
     };
 
     useEffect(() => {
-        // ... (this function is mostly unchanged)
-        const handleAuthChange = () => {
-            const freshUser = getCachedUser();
-            setUser(freshUser);
-            if (freshUser) {
-                 setShippingAddress(prev => ({ ...prev, name: freshUser.username || freshUser.email }));
-            }
-            fetchCart();
-        };
+  const handleAuthChange = () => {
+    const freshUser = getCachedUser();
+    setUser(freshUser);
+    if (freshUser) {
+      setShippingAddress(prev => ({ ...prev, name: freshUser.username || freshUser.email }));
+    }
+    fetchCart();
+  };
 
-        fetchCart();
-        window.addEventListener("authChanged", handleAuthChange);
-        return () => window.removeEventListener("authChanged", handleAuthChange);
-    }, []); 
+  // Check if we got Buy Now items via state
+  if (location.state?.checkoutItems) {
+    setCart({ items: location.state.checkoutItems, grand_total: calculateGrandTotal(location.state.checkoutItems) });
+    setLoading(false); // no need to fetch normal cart
+  } else {
+    fetchCart();
+  }
+
+  window.addEventListener("authChanged", handleAuthChange);
+  return () => window.removeEventListener("authChanged", handleAuthChange);
+}, []);
+
 
     
     // 💰 --- START: UPDATED VALIDATION LOGIC ---
