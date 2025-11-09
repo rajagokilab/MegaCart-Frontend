@@ -43,129 +43,146 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
     }, [show]);
 
 
-    const handleInitiatePayment = async () => {
-        setIsProcessing(true);
-        
-        if (!window.Razorpay) {
-            alert('Razorpay SDK not loaded. Please try again.');
-            setIsProcessing(false);
-            return;
+const handleInitiatePayment = async () => {
+    setIsProcessing(true);
+
+    // 1️⃣ Check if Razorpay SDK is loaded
+    if (!window.Razorpay) {
+        alert('Razorpay SDK not loaded. Please try again.');
+        setIsProcessing(false);
+        return;
+    }
+
+    // 2️⃣ Check if user is logged in and JWT exists
+    const authToken = getAuthToken();
+    if (!authToken) {
+        alert('Your session has expired or you are not logged in. Please log in to complete the payment.');
+        logout();
+        handleClose();
+        setShowLogin(true);
+        setIsProcessing(false);
+        return;
+    }
+
+    try {
+        // 3️⃣ Prepare order payload
+        const itemsPayload = cartItems.map(item => ({
+            id: item.product_details.id,
+            quantity: item.quantity
+        }));
+
+        if (!itemsPayload.length || grandTotal <= 0) {
+            throw new Error('Internal cart error: No items found for payment.');
         }
-        
-        try {
-            const authToken = getAuthToken();
-            const headers = { 'Content-Type': 'application/json' };
-            if (authToken) headers['Authorization'] = `JWT ${authToken}`;
 
-            const itemsPayload = cartItems.map(item => ({
-                id: item.product_details.id, 
-                quantity: item.quantity
-            }));
+        const payload = {
+            grand_total: grandTotal,
+            shipping_details: shippingAddress,
+            items: itemsPayload
+        };
 
-            const payload = { 
-                grand_total: grandTotal,
-                shipping_details: shippingAddress,
-                items: itemsPayload 
-            };
-            
-            if (payload.items.length === 0 || payload.grand_total <= 0) {
-                 throw new Error('Internal cart error: No items found for payment.');
+        // 4️⃣ Create order on server
+        const orderResponse = await fetch(ORDER_CREATE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `JWT ${authToken}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!orderResponse.ok) {
+            if (orderResponse.status === 401) {
+                logout();
+                handleClose();
+                setShowLogin(true);
+                throw new Error('Your session has expired. Please log in again to complete the payment.');
             }
+            const errorData = await orderResponse.json();
+            throw new Error(errorData.error || 'Failed to create order on server.');
+        }
 
-            const orderResponse = await fetch(ORDER_CREATE_URL, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(payload) 
-            });
+        const { razorpay_order_id, amount, currency } = await orderResponse.json();
+        const user = getCachedUser();
 
-            if (!orderResponse.ok) {
-                if (orderResponse.status === 401) {
-                    logout();
-                    handleClose();
-                    if (setShowLogin) setShowLogin(true); 
-                    throw new Error('Your session has expired. Please log in again to complete the payment.');
-                }
-                const errorData = await orderResponse.json();
-                throw new Error(errorData.error || 'Failed to create order on the server.');
-            }
+        // 5️⃣ Razorpay checkout options
+        const options = {
+            key: RAZORPAY_KEY_ID,
+            amount: amount,
+            currency: currency,
+            name: 'MegaCart E-commerce',
+            description: 'Order Payment',
+            order_id: razorpay_order_id,
+            prefill: {
+                name: shippingAddress.name,
+                email: user?.email || '',
+                contact: shippingAddress.phone || ''
+            },
+            theme: { color: '#EE82EE' },
+            modal: {
+                ondismiss: () => setIsProcessing(false)
+            },
+            handler: async (response) => {
+                setIsProcessing(true);
 
-            const orderData = await orderResponse.json();
-            const { razorpay_order_id, amount, currency } = orderData;
-            
-            const user = getCachedUser();
+                try {
+                    // 6️⃣ Verify payment on server
+                    const verificationResponse = await fetch(VERIFY_PAYMENT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `JWT ${getAuthToken()}`
+                        },
+                        body: JSON.stringify({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        })
+                    });
 
-            const options = {
-                key: RAZORPAY_KEY_ID, 
-                amount: amount, 
-                currency: currency, 
-                name: 'MegaCart E-commerce',
-                description: 'Order Payment',
-                order_id: razorpay_order_id, 
-                
-                handler: async function (response) {
-                    setIsProcessing(true); 
-                    
-                    try {
-                        const verificationResponse = await fetch(VERIFY_PAYMENT_URL, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `JWT ${getAuthToken()}`
-                            },
-                            body: JSON.stringify({
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature
-                            })
-                        });
-
-                        if (!verificationResponse.ok) {
-                            throw new Error('Payment verification failed on server.');
+                    if (!verificationResponse.ok) {
+                        if (verificationResponse.status === 401) {
+                            logout();
+                            handleClose();
+                            setShowLogin(true);
+                            throw new Error('Session expired during payment verification. Please log in again.');
                         }
-                        
-                        alert('Payment Successful! Your order has been placed.');
-                        localStorage.removeItem(GUEST_CART_ID_KEY); 
-                        window.dispatchEvent(new Event("authChanged")); 
-
-                        handleClose();
-                        navigate('/my-orders'); 
-
-                    } catch (verifyError) {
-                        alert(`Payment verification failed: ${verifyError.message}. Please contact support.`);
-                        setIsProcessing(false);
+                        const errorData = await verificationResponse.json().catch(() => ({}));
+                        throw new Error(errorData.detail || 'Payment verification failed on server.');
                     }
-                },
-                prefill: {
-                    name: shippingAddress.name, 
-                    email: user?.email || '',
-                    contact: shippingAddress.phone || '', 
-                },
-                theme: {
-                    color: '#EE82EE'
-                },
-                modal: {
-                    ondismiss: function() {
-                        setIsProcessing(false);
-                    }
+
+                    alert('Payment Successful! Your order has been placed.');
+                    localStorage.removeItem(GUEST_CART_ID_KEY);
+                    window.dispatchEvent(new Event('authChanged'));
+                    handleClose();
+                    navigate('/my-orders');
+
+                } catch (verifyError) {
+                    console.error('Payment verification error:', verifyError);
+                    alert(`Payment verification failed: ${verifyError.message}. Please contact support.`);
+                    setIsProcessing(false);
                 }
-            };
-
-            const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', function (response) {
-                alert(`Payment failed: ${response.error.description}`);
-                setIsProcessing(false);
-            });
-            
-            rzp.open();
-
-        } catch (error) {
-            console.error('Error initiating payment:', error);
-            if (error.message !== 'Your session has expired. Please log in again to complete the payment.') {
-                 alert(error.message || 'Failed to initiate payment. Please try again.');
             }
-            setIsProcessing(false); 
-        } 
-    };
+        };
+
+        // 7️⃣ Open Razorpay checkout
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', (response) => {
+            alert(`Payment failed: ${response.error.description}`);
+            setIsProcessing(false);
+        });
+
+        rzp.open();
+
+    } catch (error) {
+        console.error('Error initiating payment:', error);
+        if (error.message !== 'Your session has expired. Please log in again to complete the payment.') {
+            alert(error.message || 'Failed to initiate payment. Please try again.');
+        }
+        setIsProcessing(false);
+    }
+};
+
 
     const displayAmount = grandTotal.toFixed(2);
     
