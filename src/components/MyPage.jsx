@@ -709,12 +709,12 @@ function MyPage({ onLoginClick }) {
                                 <ListGroup variant="flush">
                                     {order.items.map(item => (
                                         <ListGroup.Item key={item.id} className="d-flex align-items-center">
-                                            <Image 
+                                            {/* <Image 
                                                 src={item.product_image || 'https://via.placeholder.com/60?text=No+Image'} 
                                                 rounded 
                                                 style={{ width: '60px', height: '60px', objectFit: 'cover' }} 
                                                 className="me-3"
-                                            />
+                                            /> */}
                                             <div className="flex-grow-1">
                                                 <strong>{item.product_name}</strong>
                                                 <br />
