@@ -220,6 +220,22 @@ function MyPage({ onLoginClick }) {
         setShowConfirmModal(true);
     };
 
+    // ▼▼▼ NEW FUNCTION ADDED ▼▼▼
+    const updateProductStatus = async (id, newStatus) => {
+        try {
+            // We PATCH the individual product URL with the new status
+            await authFetch(`${ADMIN_ALL_PRODUCTS_URL}${id}/`, {
+                method: "PATCH",
+                body: JSON.stringify({ status: newStatus })
+            });
+            // Refresh the product list to show the change
+            fetchAllProducts(); 
+        } catch (err) {
+            alert(`Failed to update product status: ${err.message}`);
+        }
+    };
+    // ▲▲▲ NEW FUNCTION ADDED ▲▲▲
+
     const createCategory = async (e) => {
         e.preventDefault();
         if (!newCategory.trim()) return;
@@ -493,6 +509,7 @@ function MyPage({ onLoginClick }) {
         </div>
     );
 
+    // ▼▼▼ REPLACED FUNCTION ▼▼▼
     const renderAdminProductMgmt = () => (
         <div>
             <h3 className="mb-4">All Products</h3>
@@ -503,23 +520,57 @@ function MyPage({ onLoginClick }) {
                         <div>
                             <strong>{p.name}</strong> — ₹{p.price}
                             <br />
-                            <span className={`badge ${p.status === 'APPROVED' ? 'bg-success' : 'bg-warning text-dark'}`}>
+                            <span className={`badge ${p.status === 'APPROVED' ? 'bg-success' : (p.status === 'PENDING' ? 'bg-warning text-dark' : 'bg-danger')}`}>
                                 {p.status}
                             </span>
                             <small className="text-muted ms-2">| By: {p.vendor_name}</small>
                         </div>
-                        <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => adminRemoveProduct(p.id)}
-                        >
-                            <FontAwesomeIcon icon={faTrash} />
-                        </Button>
+                        
+                        {/* --- UPDATED BUTTONS --- */}
+                        <div className="ms-auto d-flex gap-2">
+
+                            {/* Show "Approve" if status is NOT Approved */}
+                            {p.status !== 'APPROVED' && (
+                                <Button
+                                    variant="outline-success"
+                                    size="sm"
+                                    title="Approve"
+                                    onClick={() => updateProductStatus(p.id, 'APPROVED')}
+                                >
+                                    <FontAwesomeIcon icon={faCheck} />
+                                </Button>
+                            )}
+
+                            {/* Show "Reject" if status is NOT Rejected */}
+                            {p.status !== 'REJECTED' && (
+                                <Button
+                                    variant="outline-warning"
+                                    size="sm"
+                                    title="Reject"
+                                    onClick={() => updateProductStatus(p.id, 'REJECTED')}
+                                >
+                                    <FontAwesomeIcon icon={faTimes} />
+                                </Button>
+                            )}
+                            
+                            {/* Delete Button (existing) */}
+                            <Button 
+                                variant="outline-danger" 
+                                size="sm" 
+                                title="Delete"
+                                onClick={() => adminRemoveProduct(p.id)}
+                            >
+                                <FontAwesomeIcon icon={faTrash} />
+                            </Button>
+                        </div>
+                        {/* --- END UPDATED BUTTONS --- */}
+
                     </ListGroup.Item>
                 ))}
             </ListGroup>
         </div>
     );
+    // ▲▲▲ REPLACED FUNCTION ▲▲▲
 
     const renderAdminOrderMgmt = () => (
         <div>
@@ -864,7 +915,7 @@ function MyPage({ onLoginClick }) {
                             <FontAwesomeIcon icon={faUserCircle} size="4x" className="mb-2" style={{ color: isAdmin ? '#dc9635ff' : (isVendor ? '#d2d17fff' : '#003366') }}/>
                             <h5>{user.username}</h5>
                             <p>{user.email}</p>
-                            <span className={`badge ${isAdmin ? 'bg-[danger]' : (isVendor ? 'bg-success' : 'bg-primary')}`}>{user.role}</span>
+                            <span className={`badge ${isAdmin ? 'bg-danger' : (isVendor ? 'bg-success' : 'bg-primary')}`}>{user.role}</span>
                         </Card.Body>
                     </Card>
                     
@@ -876,7 +927,7 @@ function MyPage({ onLoginClick }) {
                             <Nav.Item><Nav.Link eventKey="admin-dashboard"style={{ color: activeView === 'admin-dashboard' ? 'white' : '#003366', backgroundColor: activeView === 'admin-dashboard' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faTachometerAlt} className="me-2"/> Dashboard</Nav.Link></Nav.Item>
                             <Nav.Item><Nav.Link eventKey="admin-vendors"style={{ color: activeView === 'admin-vendors' ? 'white' : '#003366', backgroundColor: activeView === 'admin-vendors' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faUsersCog} className="me-2"/> Vendor Apps</Nav.Link></Nav.Item>
                             <Nav.Item><Nav.Link eventKey="admin-products"style={{ color: activeView === 'admin-products' ? 'white' : '#003366', backgroundColor: activeView === 'admin-products' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faBoxOpen} className="me-2"/> Product Mgmt </Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link eventKey="admin-orders"  style={{ color: activeView === 'admin-orders' ? 'white' : '#003366', backgroundColor: activeView === 'admin-orders' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faListCheck} className="me-2"/> All Orders</Nav.Link></Nav.Item>
+                            <Nav.Item><Nav.Link eventKey="admin-orders"   style={{ color: activeView === 'admin-orders' ? 'white' : '#003366', backgroundColor: activeView === 'admin-orders' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faListCheck} className="me-2"/> All Orders</Nav.Link></Nav.Item>
                             <Nav.Item><Nav.Link eventKey="admin-categories"style={{ color: activeView === 'admin-categories' ? 'white' : '#003366', backgroundColor: activeView === 'admin-categories' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px'}}><FontAwesomeIcon icon={faTasks} className="me-2"/> Categories</Nav.Link></Nav.Item>
                         </>}
                         

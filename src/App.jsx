@@ -28,6 +28,20 @@ import ProductEditForm from './components/ProductEditForm.jsx';
 // 1. ✅ IMPORT THE NEW COMPONENT
 import VendorStorefrontPage from './components/VendorStorefrontPage.jsx';
 
+const AdminRoute = ({ children }) => {
+    const { user, loading } = useUser();
+
+    if (loading) {
+        return <Spinner animation="border" />; // Show loading while user is being checked
+    }
+
+    if (user && user.role === 'ADMIN') {
+        return children; // If user is admin, show the admin dashboard
+    }
+
+    // If not admin (or not logged in), send them away
+    return <Navigate to="/" replace />; 
+};
 
 // Helper component to access UserContext within the Router
 function AppContent() {
@@ -62,6 +76,7 @@ function AppContent() {
         <Route path="/support" element={<CustomerSupport />} />
         <Route path="/foundation" element={<Foundation />} />
         <Route path="/help" element={<Help/>} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
 
                     {/* User Account Routes */}
@@ -71,7 +86,7 @@ function AppContent() {
 
                     {/* VENDOR MANAGEMENT ROUTES */}
                     <Route path="/vendor/dashboard" element={<VendorDashboard />} />
-                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    {/* <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
                     <Route path="/vendor/products/new" element={<ProductCreateForm />} />
                     <Route path="/vendor/products/edit/:id" element={<ProductEditForm />} />
                     <Route path="/vendor/:vendorId" element={<VendorStorefrontPage />} />
