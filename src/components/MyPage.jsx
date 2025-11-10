@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { 
-    Container, Row, Col, Card, ListGroup, Button, Spinner, Alert, Nav, Form, Image, Modal 
-} from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
     faUserCircle, faShieldAlt, faTag, faTruck, faCopy,
@@ -12,8 +9,9 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { getAuthToken } from './auth'; 
 import { useUser } from '../context/UserContext.jsx'; 
-import "./MyPage.css";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#FF6666'];
 // --- API Endpoints ---
 const API = import.meta.env.VITE_API_URL;
 
@@ -79,7 +77,8 @@ function MyPage({ onLoginClick }) {
     const [categories, setCategories] = useState([]);
     const [adminLoading, setAdminLoading] = useState(false);
     const [adminError, setAdminError] = useState(null);
-    const [newCategory, setNewCategory] = useState(""); // 💰 ADDED Admin State
+    const [newCategory, setNewCategory] = useState("");
+    const [categoryLoading, setCategoryLoading] = useState(false); 
 
     // --- State for Customer ---
     const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -90,10 +89,9 @@ function MyPage({ onLoginClick }) {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [confirmAction, setConfirmAction] = useState(null);
     const [confirmMessage, setConfirmMessage] = useState("");
-    const [confirmVariant, setConfirmVariant] = useState("danger");
+    const [confirmVariant, setConfirmVariant] = useState("danger"); // 'danger', 'primary', 'success'
 
     // 💰 --- ADMIN Universal Fetch Wrapper ---
-    // This helper makes all admin API calls easier
     const authFetch = async (url, options = {}) => {
         const token = getAuthToken();
         if (!token) throw new Error("Admin authentication token not found.");
@@ -133,7 +131,7 @@ function MyPage({ onLoginClick }) {
 
 
     // --------------------------------------------------
-    // 💰 --- START: FILLED-IN ADMIN API Functions ---
+    // 💰 --- START: ADMIN API Functions ---
     // --------------------------------------------------
 
     const fetchAdminDashboard = async () => {
@@ -173,8 +171,6 @@ function MyPage({ onLoginClick }) {
 
     const fetchCategories = async () => {
         try {
-            // Note: Admin categories uses the public endpoint but will
-            // have admin rights (POST/DELETE) due to the auth token
             const res = await authFetch(ADMIN_CATEGORIES_URL);
             if (!res.ok) throw new Error('Could not fetch categories');
             const data = await res.json();
@@ -185,7 +181,6 @@ function MyPage({ onLoginClick }) {
     // --- Admin Action Functions ---
 
     const approveVendor = async (id, action) => {
-        // Use confirmation modal
         const message = action === "APPROVE" 
             ? `Are you sure you want to approve vendor ${id}?`
             : `Are you sure you want to REJECT and DELETE vendor ${id}?`;
@@ -220,36 +215,52 @@ function MyPage({ onLoginClick }) {
         setShowConfirmModal(true);
     };
 
-    // ▼▼▼ NEW FUNCTION ADDED ▼▼▼
     const updateProductStatus = async (id, newStatus) => {
         try {
-            // We PATCH the individual product URL with the new status
             await authFetch(`${ADMIN_ALL_PRODUCTS_URL}${id}/`, {
                 method: "PATCH",
                 body: JSON.stringify({ status: newStatus })
             });
-            // Refresh the product list to show the change
             fetchAllProducts(); 
         } catch (err) {
             alert(`Failed to update product status: ${err.message}`);
         }
     };
-    // ▲▲▲ NEW FUNCTION ADDED ▲▲▲
 
+    // ▼▼▼ UPDATED FUNCTION ▼▼▼
     const createCategory = async (e) => {
         e.preventDefault();
-        if (!newCategory.trim()) return;
+        const categoryName = newCategory.trim();
+        if (!categoryName) return;
+
+        setCategoryLoading(true);
+
+        // 1. Generate the slug from the name
+        const categorySlug = categoryName
+            .toLowerCase()
+            .replace(/\s+/g, '-')     // Replace spaces with -
+            .replace(/[^\w-]+/g, '') // Remove all non-word chars
+            .replace(/--+/g, '-');    // Replace multiple - with single -
+
         try {
             await authFetch(ADMIN_CATEGORIES_URL, {
                 method: "POST",
-                body: JSON.stringify({ name: newCategory })
+                // 2. Send both name and slug
+                body: JSON.stringify({ 
+                    name: categoryName,
+                    slug: categorySlug 
+                })
             });
             setNewCategory("");
             fetchCategories(); // Refresh the list
         } catch (err) {
-            alert(`Failed to create category: ${err.message}`);
+            // This will now catch the error if the slug already exists
+            alert(`Failed to create category. (Is the name or slug already taken?) Error: ${err.message}`);
+        } finally {
+            setCategoryLoading(false); 
         }
     };
+    // ▲▲▲ UPDATED FUNCTION ▲▲▲
 
     const deleteCategory = async (id) => {
         setConfirmMessage(`Are you sure you want to delete this category?`);
@@ -266,7 +277,7 @@ function MyPage({ onLoginClick }) {
     };
 
     // --------------------------------------------------
-    // 💰 --- END: FILLED-IN ADMIN API Functions ---
+    // 💰 --- END: ADMIN API Functions ---
     // --------------------------------------------------
     
     // --- VENDOR API Functions ---
@@ -422,245 +433,324 @@ function MyPage({ onLoginClick }) {
     
     const getStatusIcon = (status) => {
         switch (status) {
-            case 'Paid': return { icon: faCircleCheck, color: 'text-success' };
-            case 'Shipped': return { icon: faTruckMoving, color: 'text-primary' };
-            case 'Delivered': return { icon: faBoxOpenSolid, color: 'text-info' };
-            case 'Failed': return { icon: faSignInAlt, color: 'text-danger' };
+            case 'Paid': return { icon: faCircleCheck, color: 'text-green-500' };
+            case 'Shipped': return { icon: faTruckMoving, color: 'text-blue-500' };
+            case 'Delivered': return { icon: faBoxOpenSolid, color: 'text-sky-500' };
+            case 'Failed': return { icon: faSignInAlt, color: 'text-red-500' };
             case 'Pending':
-            default: return { icon: faClock, color: 'text-warning' };
+            default: return { icon: faClock, color: 'text-yellow-500' };
         }
     };
 
+    // --- Helper for dynamic nav link styling ---
+    const navLinkClasses = (view, activeView, theme) => {
+        const base = "flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200";
+        const themes = {
+            admin: { active: 'bg-yellow-500 text-white', inactive: 'text-gray-700 hover:bg-yellow-50' },
+            vendor: { active: 'bg-lime-600 text-white', inactive: 'text-gray-700 hover:bg-lime-50' },
+            customer: { active: 'bg-green-600 text-white', inactive: 'text-gray-700 hover:bg-green-50' }
+        };
+        const style = themes[theme] || themes.customer;
+        return `${base} ${activeView === view ? style.active : style.inactive}`;
+    };
+
+    // --- Helper for loading spinner ---
+    const renderSpinner = (text = "Loading...") => (
+        <div className="flex flex-col items-center justify-center p-10">
+            <div className="w-12 h-12 border-4 border-t-blue-600 border-gray-200 rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-600">{text}</p>
+        </div>
+    );
 
     // --------------------------------------------------
-    // 💰 --- START: FILLED-IN ADMIN RENDER Functions ---
+    // 💰 --- START: ADMIN RENDER Functions ---
     // --------------------------------------------------
 
     const renderAdminDashboard = () => {
-        if (!adminDashboardData) return <Spinner animation="border" />;
-        const stats = adminDashboardData; // Use the direct object
+        if (!adminDashboardData) return renderSpinner("Loading Dashboard...");
+        const stats = adminDashboardData; 
         
         return (
             <div>
-                <h3 className="mb-4">Admin Dashboard</h3>
-                <Row className="mt-3 g-4">
-                    <Col md={6}>
-                        <Card className="p-3 bg-primary text-white shadow-sm">
-                            <h6>Total Sales</h6>
-                            <h3>₹{stats.total_sales?.toFixed(2) || '0.00'}</h3>
-                        </Card>
-                    </Col>
-                    <Col md={6}>
-                        <Card className="p-3 bg-success text-white shadow-sm">
-                            <h6>Total Commission (10%)</h6>
-                            <h3>₹{stats.total_commission?.toFixed(2) || '0.00'}</h3>
-                        </Card>
-                    </Col>
-                    <Col md={6}>
-                        <Card className="p-3 bg-info text-dark shadow-sm">
-                            <h6>New Orders (Paid)</h6>
-                            <h3>{stats.new_orders}</h3>
-                        </Card>
-                    </Col>
-                    <Col md={6}>
-                        <Card className="p-3 bg-warning text-dark shadow-sm">
-                            <h6>Pending Vendors</h6>
-                            <h3>{stats.pending_vendors}</h3>
-                        </Card>
-                    </Col>
-                </Row>
+                <h3 className="text-2xl font-semibold mb-6">Admin Dashboard</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-6 rounded-lg shadow-md bg-blue-600 text-white">
+                        <h6 className="text-sm font-medium uppercase text-white/80">Total Sales</h6>
+                        <h3 className="text-4xl font-bold">₹{stats.total_sales?.toFixed(2) || '0.00'}</h3>
+                    </div>
+                    <div className="p-6 rounded-lg shadow-md bg-green-600 text-white">
+                        <h6 className="text-sm font-medium uppercase text-white/80">Total Commission (10%)</h6>
+                        <h3 className="text-4xl font-bold">₹{stats.total_commission?.toFixed(2) || '0.00'}</h3>
+                    </div>
+                    <div className="p-6 rounded-lg shadow-md bg-sky-500 text-white">
+                        <h6 className="text-sm font-medium uppercase text-white/80">New Orders (Paid)</h6>
+                        <h3 className="text-4xl font-bold">{stats.new_orders}</h3>
+                    </div>
+                    <div className="p-6 rounded-lg shadow-md bg-yellow-400 text-gray-900">
+                        <h6 className="text-sm font-medium uppercase text-gray-900/80">Pending Vendors</h6>
+                        <h3 className="text-4xl font-bold">{stats.pending_vendors}</h3>
+                    </div>
+                </div>
             </div>
         );
     };
 
     const renderAdminVendorMgmt = () => (
         <div>
-            <h3 className="mb-4">Vendor Applications</h3>
+            <h3 className="text-2xl font-semibold mb-6">Vendor Applications</h3>
             {pendingVendors.length === 0 && (
-                <Alert variant="success">No pending vendor applications.</Alert>
+                <div className="bg-green-100 text-green-700 p-4 rounded-md">
+                    No pending vendor applications.
+                </div>
             )}
-            <ListGroup className="mt-3">
+            <div className="mt-4 space-y-3">
                 {pendingVendors.map(v => (
-                    <ListGroup.Item key={v.id} className="d-flex flex-wrap justify-content-between align-items-center">
-                        <div className="mb-2 mb-md-0">
-                            <strong>{v.store_name}</strong><br />
-                            <small className="text-muted">{v.email}</small>
+                    <div key={v.id} className="bg-white p-4 rounded-lg shadow-sm flex flex-wrap justify-between items-center">
+                        <div className="mb-2 md:mb-0">
+                            <strong className="font-semibold text-gray-900">{v.store_name}</strong><br />
+                            <small className="text-sm text-gray-500">{v.email}</small>
                         </div>
-                        <div className="ms-auto">
-                            <Button
-                                variant="success"
-                                className="me-2"
-                                size="sm"
+                        <div className="flex-shrink-0 ml-4 space-x-2">
+                            <button
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md shadow-sm transition hover:bg-green-700"
                                 onClick={() => approveVendor(v.id, "APPROVE")}
                             >
-                                <FontAwesomeIcon icon={faCheck} /> Approve
-                            </Button>
-                            <Button
-                                variant="danger"
-                                size="sm"
+                                <FontAwesomeIcon icon={faCheck} className="mr-1" /> Approve
+                            </button>
+                            <button
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm transition hover:bg-red-700"
                                 onClick={() => approveVendor(v.id, "REJECT")}
                             >
-                                <FontAwesomeIcon icon={faTimes} /> Reject
-                            </Button>
+                                <FontAwesomeIcon icon={faTimes} className="mr-1" /> Reject
+                            </button>
                         </div>
-                    </ListGroup.Item>
+                    </div>
                 ))}
-            </ListGroup>
+            </div>
         </div>
     );
 
-    // ▼▼▼ REPLACED FUNCTION ▼▼▼
     const renderAdminProductMgmt = () => (
         <div>
-            <h3 className="mb-4">All Products</h3>
-            <ListGroup className="mt-3">
-                {allProducts.length === 0 && <Alert variant="info">No products found.</Alert>}
+            <h3 className="text-2xl font-semibold mb-6">All Products</h3>
+            <div className="mt-4 space-y-3">
+                {allProducts.length === 0 && <div className="bg-blue-100 text-blue-700 p-4 rounded-md">No products found.</div>}
                 {allProducts.map(p => (
-                    <ListGroup.Item key={p.id} className="d-flex justify-content-between align-items-center">
+                    <div key={p.id} className="bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
                         <div>
-                            <strong>{p.name}</strong> — ₹{p.price}
+                            <strong className="font-semibold">{p.name}</strong> — ₹{p.price}
                             <br />
-                            <span className={`badge ${p.status === 'APPROVED' ? 'bg-success' : (p.status === 'PENDING' ? 'bg-warning text-dark' : 'bg-danger')}`}>
+                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                                p.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 
+                                (p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')
+                            }`}>
                                 {p.status}
                             </span>
-                            <small className="text-muted ms-2">| By: {p.vendor_name}</small>
+                            <small className="text-sm text-gray-500 ml-2 border-l border-gray-300 pl-2">By: {p.vendor_name}</small>
                         </div>
                         
-                        {/* --- UPDATED BUTTONS --- */}
-                        <div className="ms-auto d-flex gap-2">
-
-                            {/* Show "Approve" if status is NOT Approved */}
+                        <div className="flex-shrink-0 ml-4 flex gap-2">
                             {p.status !== 'APPROVED' && (
-                                <Button
-                                    variant="outline-success"
-                                    size="sm"
+                                <button
+                                    className="p-2 rounded-md border border-green-500 text-green-500 hover:bg-green-50 transition"
                                     title="Approve"
                                     onClick={() => updateProductStatus(p.id, 'APPROVED')}
                                 >
                                     <FontAwesomeIcon icon={faCheck} />
-                                </Button>
+                                </button>
                             )}
-
-                            {/* Show "Reject" if status is NOT Rejected */}
                             {p.status !== 'REJECTED' && (
-                                <Button
-                                    variant="outline-warning"
-                                    size="sm"
+                                <button
+                                    className="p-2 rounded-md border border-yellow-500 text-yellow-500 hover:bg-yellow-50 transition"
                                     title="Reject"
                                     onClick={() => updateProductStatus(p.id, 'REJECTED')}
                                 >
                                     <FontAwesomeIcon icon={faTimes} />
-                                </Button>
+                                </button>
                             )}
-                            
-                            {/* Delete Button (existing) */}
-                            <Button 
-                                variant="outline-danger" 
-                                size="sm" 
+                            <button 
+                                className="p-2 rounded-md border border-red-500 text-red-500 hover:bg-red-50 transition"
                                 title="Delete"
                                 onClick={() => adminRemoveProduct(p.id)}
                             >
                                 <FontAwesomeIcon icon={faTrash} />
-                            </Button>
+                            </button>
                         </div>
-                        {/* --- END UPDATED BUTTONS --- */}
-
-                    </ListGroup.Item>
+                    </div>
                 ))}
-            </ListGroup>
+            </div>
         </div>
     );
-    // ▲▲▲ REPLACED FUNCTION ▲▲▲
 
-    const renderAdminOrderMgmt = () => (
-        <div>
-            <h3 className="mb-4">All Orders</h3>
-            {allOrders.length === 0 && <Alert variant="info">No orders found.</Alert>}
-            {allOrders.map(o => (
-                <Card key={o.id} className="p-3 my-3 shadow-sm">
-                    <Card.Header>
-                        Order #{o.id} — <strong>Status: {o.status}</strong>
-                    </Card.Header>
-                    <Card.Body>
-                        <p><strong>Total:</strong> ₹{o.total_amount}</p>
-                        <p><strong>User:</strong> {o.user_email}</p>
-                        <h6>Items:</h6>
-                        <ul>
-                            {o.items.map(i => (
-                                <li key={i.id}>
-                                    {i.product_name} × {i.quantity}
-                                </li>
-                            ))}
-                        </ul>
-                    </Card.Body>
-                </Card>
-            ))}
-        </div>
-    );
+    const renderAdminOrderMgmt = () => {
+        if (allOrders.length === 0) return <p className="text-gray-600">No orders found.</p>;
+
+        // --- Orders by Vendor ---
+        const vendorDataMap = {};
+        allOrders.forEach(order => {
+            const vendor = order.vendor_name || "Unknown";
+            vendorDataMap[vendor] = vendorDataMap[vendor] || { vendor, totalOrders: 0, totalRevenue: 0 };
+            vendorDataMap[vendor].totalOrders += 1;
+            vendorDataMap[vendor].totalRevenue += Number(order.total_amount || 0);
+        });
+        const vendorData = Object.values(vendorDataMap);
+
+        // --- Orders by Product ---
+        const productDataMap = {};
+        allOrders.forEach(order => {
+            order.items.forEach(item => {
+                const product = item.product_name || "Unknown";
+                productDataMap[product] = productDataMap[product] || { product, quantity: 0 };
+                productDataMap[product].quantity += Number(item.quantity || 0);
+            });
+        });
+        const productData = Object.values(productDataMap);
+
+        // --- Order Status Distribution ---
+        const statusMap = {};
+        allOrders.forEach(order => {
+            const status = order.status || "Unknown";
+            statusMap[status] = (statusMap[status] || 0) + 1;
+        });
+        const statusData = Object.entries(statusMap).map(([status, value]) => ({ name: status, value }));
+
+        return (
+            <div className="space-y-10">
+                <div>
+                    <h3 className="text-xl font-semibold mb-4">Orders by Vendor</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={vendorData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                            <XAxis dataKey="vendor" />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="totalOrders" fill="#3b82f6" name="Total Orders" />
+                            <Bar dataKey="totalRevenue" fill="#f59e0b" name="Revenue (₹)" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+
+                <div>
+                    <h3 className="text-xl font-semibold mb-4">Orders by Product</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart layout="vertical" data={productData} margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+                            <XAxis type="number" />
+                            <YAxis type="category" dataKey="product" />
+                            <Tooltip />
+                            <Bar dataKey="quantity" fill="#10b981" name="Quantity Sold" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+
+                <div>
+                    <h3 className="text-xl font-semibold mb-4">Order Status Distribution</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                            <Pie
+                                data={statusData}
+                                dataKey="value"
+                                nameKey="name"
+                                outerRadius={100}
+                                fill="#6366f1"
+                                label
+                            >
+                                {statusData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        );
+    };
 
     const renderAdminCategoryMgmt = () => (
         <div>
-            <h3 className="mb-4">Manage Categories</h3>
-            <Form onSubmit={createCategory} className="d-flex mt-3">
-                <Form.Control
+            <h3 className="text-2xl font-semibold mb-6">Manage Categories</h3>
+            <form onSubmit={createCategory} className="flex gap-3 mt-4">
+                <input
+                    type="text"
+                    className="flex-grow block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50"
                     placeholder="New category name"
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     required
+                    disabled={categoryLoading}
                 />
-                <Button className="ms-2" type="submit" variant="primary">
-                    <FontAwesomeIcon icon={faPlus} /> Add
-                </Button>
-            </Form>
-            <hr />
-            <ListGroup className="mt-3">
+                <button 
+                    type="submit" 
+                    className="inline-flex items-center justify-center px-4 py-2 w-20 text-sm font-medium text-white bg-blue-600 rounded-md shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+                    disabled={categoryLoading}
+                >
+                    {categoryLoading ? (
+                        <div className="w-5 h-5 border-2 border-t-white border-gray-200 rounded-full animate-spin"></div>
+                    ) : (
+                        <>
+                            <FontAwesomeIcon icon={faPlus} className="mr-2" /> Add
+                        </>
+                    )}
+                </button>
+            </form>
+            <hr className="my-6" />
+            <div className="mt-3 space-y-3">
                 {categories.map(c => (
-                    <ListGroup.Item key={c.id} className="d-flex justify-content-between align-items-center">
-                        {c.name}
-                        <Button
-                            variant="outline-danger"
-                            size="sm"
+                    <div key={c.id} className="bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
+                        <span className="font-medium">{c.name}</span>
+                        <button
+                            className="p-2 rounded-md border border-red-500 text-red-500 hover:bg-red-50 transition"
                             onClick={() => deleteCategory(c.id)}
+                            title="Delete Category"
                         >
                             <FontAwesomeIcon icon={faTrash} />
-                        </Button>
-                    </ListGroup.Item>
+                        </button>
+                    </div>
                 ))}
-            </ListGroup>
+            </div>
         </div>
     );
 
     // --------------------------------------------------
-    // 💰 --- END: FILLED-IN ADMIN RENDER Functions ---
+    // 💰 --- END: ADMIN RENDER Functions ---
     // --------------------------------------------------
 
 
     // --- VENDOR Render Functions ---
     const renderVendorDashboard = () => {
-        if (dashboardLoading) return <Spinner animation="border" />;
-        if (dashboardError) return <Alert variant="danger">{dashboardError}</Alert>;
+        if (dashboardLoading) return renderSpinner("Loading Dashboard...");
+        if (dashboardError) return <div className="p-4 rounded-md bg-red-100 text-red-700">{dashboardError}</div>;
         const metrics = dashboardData || { total_earnings: 0, total_orders: 0, active_products: 0, unique_customers: 0 };
     
         return (
             <div>
-                <h3 className="mb-4">{user.store_name || user.username} Dashboard</h3>
-                <Row className="g-4">
-                    <Col md={6} lg={3}><Card className="shadow-sm" style={{ backgroundColor: '#bb7300ff', color: 'white' }}><Card.Body><h6>Total Earnings</h6><h2>₹{metrics.total_earnings ? metrics.total_earnings.toFixed(2) : '0.00'}</h2></Card.Body></Card></Col>
-                    <Col md={6} lg={3}><Card className="shadow-sm" style={{ backgroundColor: '#85a728ff', color: 'white' }}><Card.Body><h6>Total Orders</h6><h2>{metrics.total_orders}</h2></Card.Body></Card></Col>
-                    <Col md={6} lg={3}><Card className="shadow-sm" style={{ backgroundColor: '#003366', color: 'white' }}><Card.Body><h6>Active Products</h6><h2>{metrics.active_products}</h2></Card.Body></Card></Col>
-                    <Col md={6} lg={3}><Card className="shadow-sm border-0"style={{ backgroundColor: '#056600ff', color: 'white' }}><Card.Body><h6>Customers</h6><h2>{metrics.unique_customers}</h2></Card.Body></Card></Col>
-                </Row>
-                <Alert variant="secondary" className="mt-4">
-                    <h5 className="fw-bold">Admin Approval Workflow</h5>
-                    <p>All new products start as <strong>PENDING</strong>. You can edit/delete them before approval.</p>
-                </Alert>
-                <div className="d-flex gap-3">
-                    <Button onClick={() => handleProductAction('add')} style={{ backgroundColor: '#ff7f50', borderColor: '#ff7f50', color: 'white' }}>
-                        <FontAwesomeIcon icon={faPlus} className="me-2" /> Add Product
-                    </Button>
-                    <Button onClick={() => setActiveView('vendor-products')} style={{ backgroundColor: '#003366', borderColor: '#003366', color: 'white' }}>
-                        <FontAwesomeIcon icon={faList} className="me-2" /> View Inventory
-                    </Button>
+                <h3 className="text-2xl font-semibold mb-6">{user.store_name || user.username} Dashboard</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="p-5 rounded-lg shadow-md text-white bg-orange-600"><h6 className="text-sm font-medium uppercase text-white/80">Total Earnings</h6><h2 className="text-4xl font-bold">₹{metrics.total_earnings ? metrics.total_earnings.toFixed(2) : '0.00'}</h2></div>
+                    <div className="p-5 rounded-lg shadow-md text-white bg-lime-600"><h6 className="text-sm font-medium uppercase text-white/80">Total Orders</h6><h2 className="text-4xl font-bold">{metrics.total_orders}</h2></div>
+                    <div className="p-5 rounded-lg shadow-md text-white bg-blue-900"><h6 className="text-sm font-medium uppercase text-white/80">Active Products</h6><h2 className="text-4xl font-bold">{metrics.active_products}</h2></div>
+                    <div className="p-5 rounded-lg shadow-md text-white bg-green-800"><h6 className="text-sm font-medium uppercase text-white/80">Customers</h6><h2 className="text-4xl font-bold">{metrics.unique_customers}</h2></div>
+                </div>
+                
+                <div className="mt-6 bg-gray-100 p-4 rounded-lg">
+                    <h5 className="font-bold text-gray-800">Admin Approval Workflow</h5>
+                    <p className="text-gray-700">All new products start as <strong>PENDING</strong>. You can edit/delete them before approval.</p>
+                </div>
+
+                <div className="mt-6 flex gap-3">
+                    <button 
+                        onClick={() => handleProductAction('add')} 
+                        className="inline-flex items-center px-4 py-2 font-medium text-white bg-orange-500 rounded-md shadow-sm hover:bg-orange-600 transition"
+                    >
+                        <FontAwesomeIcon icon={faPlus} className="mr-2" /> Add Product
+                    </button>
+                    <button 
+                        onClick={() => setActiveView('vendor-products')} 
+                        className="inline-flex items-center px-4 py-2 font-medium text-white bg-blue-900 rounded-md shadow-sm hover:bg-blue-800 transition"
+                    >
+                        <FontAwesomeIcon icon={faList} className="mr-2" /> View Inventory
+                    </button>
                 </div>
             </div>
         );
@@ -668,137 +758,142 @@ function MyPage({ onLoginClick }) {
 
     const renderProductManagement = () => (
         <div>
-            <h3 className="mb-3">Product Management</h3>
-            <Button onClick={() => handleProductAction('add')} style={{ backgroundColor: '#ff7f50', borderColor: '#ff7f50', color: 'white' }} className="mb-3">
-                <FontAwesomeIcon icon={faPlus} className="me-2" /> Add Product
-            </Button>
-            {productsLoading && <Spinner animation="border" />}
-            {productsError && <Alert variant="danger">{productsError}</Alert>}
-            <Card>
-                <ListGroup variant="flush">
+            <h3 className="text-2xl font-semibold mb-4">Product Management</h3>
+            <button 
+                onClick={() => handleProductAction('add')} 
+                className="inline-flex items-center px-4 py-2 font-medium text-white bg-orange-500 rounded-md shadow-sm hover:bg-orange-600 transition mb-4"
+            >
+                <FontAwesomeIcon icon={faPlus} className="mr-2" /> Add Product
+            </button>
+            
+            {productsLoading && renderSpinner("Loading Products...")}
+            {productsError && <div className="p-4 rounded-md bg-red-100 text-red-700">{productsError}</div>}
+            
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <ul className="divide-y divide-gray-200">
                     {vendorProducts.length === 0 ? (
-                        <ListGroup.Item>You have not added any products yet.</ListGroup.Item>
+                        <li className="p-4 text-gray-500">You have not added any products yet.</li>
                     ) : (
                         vendorProducts.map(p => (
-                            <ListGroup.Item key={p.id} className="d-flex justify-content-between align-items-center">
+                            <li key={p.id} className="p-4 flex flex-wrap justify-between items-center">
                                 <div>
-                                    {p.name}{" "}
-                                    <span style={{ 
-                                        backgroundColor: p.status === "APPROVED" ? '#28a745' : p.status === "PENDING" ? '#ff7f50' : '#003366', 
-                                        color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem' 
-                                    }}>{p.status}</span>{" "}
+                                    <span className="font-medium text-gray-900">{p.name}</span>{" "}
+                                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full text-white ${
+                                        p.status === "APPROVED" ? 'bg-green-600' :
+                                        p.status === "PENDING" ? 'bg-orange-500' : 'bg-blue-900'
+                                    }`}>{p.status}</span>{" "}
                                     | ₹{parseFloat(p.price).toFixed(2)}
                                 </div>
-                                <div>
-                                    <Button size="sm" onClick={() => handleProductAction('edit', p.id)} style={{ marginRight: '5px', backgroundColor: '#003366', color: 'white', borderColor: '#003366' }}>Edit</Button>
-                                    <Button size="sm" onClick={() => handleProductAction('delete', p.id)} style={{ backgroundColor: '#ff7f50', color: 'white', borderColor: '#ff7f50' }}>Delete</Button>
+                                <div className="flex-shrink-0 ml-4 space-x-2 mt-2 sm:mt-0">
+                                    <button 
+                                        onClick={() => handleProductAction('edit', p.id)} 
+                                        className="px-3 py-1.5 text-sm font-medium text-white bg-blue-900 rounded-md shadow-sm hover:bg-blue-800 transition"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button 
+                                        onClick={() => handleProductAction('delete', p.id)} 
+                                        className="px-3 py-1.5 text-sm font-medium text-white bg-orange-500 rounded-md shadow-sm hover:bg-orange-600 transition"
+                                    >
+                                        Delete
+                                    </button>
                                 </div>
-                            </ListGroup.Item>
+                            </li>
                         ))
                     )}
-                </ListGroup>
-            </Card>
+                </ul>
+            </div>
         </div>
     );
     
     const renderVendorOrders = () => {
-        if (ordersLoading) return <Spinner animation="border" />;
-        if (ordersError) return <Alert variant="danger">{ordersError}</Alert>;
+        if (ordersLoading) return renderSpinner("Loading Orders...");
+        if (ordersError) return <div className="p-4 rounded-md bg-red-100 text-red-700">{ordersError}</div>;
         if (vendorOrders.length === 0) {
-            return <Alert variant="info">You have not received any orders yet.</Alert>;
+            return <div className="p-4 rounded-md bg-blue-100 text-blue-700">You have not received any orders yet.</div>;
         }
 
         return (
             <div>
-                <h3 className="mb-3">Customer Orders</h3>
-                {vendorOrders.map(order => {
-                    const nextStatus = STATUS_TRANSITIONS[order.status];
-                    const isUpdating = updatingOrderId === order.id;
-                    const isUpdateDisabled = !nextStatus || isUpdating;
+                <h3 className="text-2xl font-semibold mb-4">Customer Orders</h3>
+                <div className="space-y-4">
+                    {vendorOrders.map(order => {
+                        const nextStatus = STATUS_TRANSITIONS[order.status];
+                        const isUpdating = updatingOrderId === order.id;
+                        const isUpdateDisabled = !nextStatus || isUpdating;
 
-                    return (
-                        <Card key={order.id} className="mb-3 shadow-sm">
-                            <Card.Header className="d-flex justify-content-between align-items-center bg-light">
-                                <div>
-                                    <strong>Order ID: {order.id}</strong>
-                                    <span 
-                                        className={`ms-2 badge fw-bold`} 
-                                        style={{ 
-                                            backgroundColor: order.status === 'Paid' ? '#28aa45' : order.status === 'Shipped' ? '#0d6efd' : '#6c757d',
-                                            color: 'white'
-                                        }}
-                                    >
-                                        {order.status}
-                                    </span>
-                                </div>
-                                <div className="d-flex align-items-center">
-                                    <span>Date: {new Date(order.created_at).toLocaleDateString()}</span>
-                                    
-                                    {order.status !== 'Delivered' && order.status !== 'Failed' && (
-                                        <Button
-                                            size="sm"
-                                            variant="secondary"
-                                            className="ms-3"
-                                            disabled={isUpdateDisabled}
-                                            onClick={() => handleStatusConfirmation(order.id, nextStatus)} 
+                        return (
+                            <div key={order.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+                                <div className="flex flex-wrap justify-between items-center p-4 bg-gray-50 border-b">
+                                    <div>
+                                        <strong className="text-gray-900">Order ID: {order.id}</strong>
+                                        <span 
+                                            className={`ml-2 px-2.5 py-0.5 rounded-full text-sm font-bold text-white ${
+                                                order.status === 'Paid' ? 'bg-green-600' :
+                                                order.status === 'Shipped' ? 'bg-blue-600' : 'bg-gray-500'
+                                            }`}
                                         >
-                                            {isUpdating ? (
-                                                <Spinner as="span" size="sm" animation="border" className="me-2" />
-                                            ) : (
-                                                <>
-                                                    Mark as {nextStatus} 
-                                                    <FontAwesomeIcon icon={faChevronRight} className="ms-2" />
-                                                </>
-                                            )}
-                                        </Button>
-                                    )}
-                                </div>
-                            </Card.Header>
-                            <Card.Body>
-                                <Card.Text><strong>Customer:</strong> {order.customer_name}</Card.Text>
-                                <hr />
-                                <h6 className="mb-3">Items in this Order:</h6>
-                                <ListGroup variant="flush">
-                                    {order.items.map(item => (
-                                        <ListGroup.Item key={item.id} className="d-flex align-items-center">
-                                            {/* <Image 
-                                                src={item.product_image || 'https://via.placeholder.com/60?text=No+Image'} 
-                                                rounded 
-                                                style={{ width: '60px', height: '60px', objectFit: 'cover' }} 
-                                                className="me-3"
-                                            /> */}
-                                            <div className="flex-grow-1">
-                                                <strong>{item.product_name}</strong>
-                                                <br />
-                                                <small className="text-muted">Quantity: {item.quantity}</small>
-                                            </div>
-                                            <div className="fw-bold">
-                                                ₹{parseFloat(item.price).toFixed(2)}
-                                            </div>
-                                        </ListGroup.Item>
-                                    ))}
-                                </ListGroup>
-                            </Card.Body>
-                            <Card.Footer className="bg-white">
-                                <h6 className="fw-bold mb-2">Tracking History</h6>
-                                <ListGroup horizontal className="d-flex justify-content-between">
-                                    {order.history && order.history.map(record => {
-                                        const { icon, color } = getStatusIcon(record.status);
-                                        return (
-                                            <ListGroup.Item 
-                                                key={record.timestamp} 
-                                                className={`text-center p-2 border-0`}
+                                            {order.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center mt-2 sm:mt-0">
+                                        <span className="text-sm text-gray-600">Date: {new Date(order.created_at).toLocaleDateString()}</span>
+                                        
+                                        {order.status !== 'Delivered' && order.status !== 'Failed' && (
+                                            <button
+                                                className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-gray-600 rounded-md shadow-sm hover:bg-gray-700 transition ml-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                disabled={isUpdateDisabled}
+                                                onClick={() => handleStatusConfirmation(order.id, nextStatus)} 
                                             >
-                                                <FontAwesomeIcon icon={icon} size="lg" className={color} /><br />
-                                                <small>{record.status}</small>
-                                            </ListGroup.Item>
-                                        );
-                                    })}
-                                </ListGroup>
-                            </Card.Footer>
-                        </Card>
-                    );
-                })}
+                                                {isUpdating ? (
+                                                    <div className="w-4 h-4 border-2 border-t-white border-gray-200 rounded-full animate-spin mr-2"></div>
+                                                ) : (
+                                                    <>
+                                                        Mark as {nextStatus} 
+                                                        <FontAwesomeIcon icon={faChevronRight} className="ml-2" />
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="p-4">
+                                    <p className="font-medium text-gray-700"><strong>Customer:</strong> {order.customer_name}</p>
+                                    <hr className="my-4" />
+                                    <h6 className="text-lg font-semibold mb-3">Items in this Order:</h6>
+                                    <ul className="divide-y divide-gray-200">
+                                        {order.items.map(item => (
+                                            <li key={item.id} className="py-3 flex justify-between items-center">
+                                                <div className="flex-grow">
+                                                    <strong className="text-gray-800">{item.product_name}</strong>
+                                                    <br />
+                                                    <small className="text-gray-500">Quantity: {item.quantity}</small>
+                                                </div>
+                                                <div className="font-bold text-gray-900">
+                                                    ₹{parseFloat(item.price).toFixed(2)}
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div className="p-4 bg-white border-t">
+                                    <h6 className="font-bold mb-2 text-gray-800">Tracking History</h6>
+                                    <ul className="flex flex-wrap justify-between -m-2">
+                                        {order.history && order.history.map(record => {
+                                            const { icon, color } = getStatusIcon(record.status);
+                                            return (
+                                                <li key={record.timestamp} className="text-center p-2">
+                                                    <FontAwesomeIcon icon={icon} size="lg" className={`text-2xl ${color}`} /><br />
+                                                    <small className="text-gray-600">{record.status}</small>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         );
     };
@@ -806,12 +901,12 @@ function MyPage({ onLoginClick }) {
     // --- CUSTOMER Render Functions ---
     const renderProfileView = () => (
         <div>
-            <h3>Profile Details</h3>
-            <ListGroup variant="flush">
-                <ListGroup.Item>Username: {user.username}</ListGroup.Item>
-                <ListGroup.Item>Email: {user.email}</ListGroup.Item>
-                <ListGroup.Item>Role: {user.role}</ListGroup.Item>
-            </ListGroup>
+            <h3 className="text-2xl font-semibold mb-6">Profile Details</h3>
+            <ul className="divide-y divide-gray-200">
+                <li className="py-3"><span className="font-medium text-gray-700">Username:</span> {user.username}</li>
+                <li className="py-3"><span className="font-medium text-gray-700">Email:</span> {user.email}</li>
+                <li className="py-3"><span className="font-medium text-gray-700">Role:</span> {user.role}</li>
+            </ul>
         </div>
     );
 
@@ -819,8 +914,8 @@ function MyPage({ onLoginClick }) {
     const renderActiveView = () => {
         // 1. ADMIN VIEW
         if (isAdmin) {
-            if (adminLoading) return <Container className="p-5 text-center"><Spinner animation="border" /></Container>;
-            if (adminError) return <Alert variant="danger">{adminError}</Alert>;
+            if (adminLoading) return renderSpinner("Loading Admin Portal...");
+            if (adminError) return <div className="p-4 rounded-md bg-red-100 text-red-700">{adminError}</div>;
             
             switch(activeView) {
                 case 'admin-dashboard': return renderAdminDashboard();
@@ -840,9 +935,9 @@ function MyPage({ onLoginClick }) {
                 case 'profile': return renderProfileView();
                 case 'security': 
                     return (
-                        <Form onSubmit={handlePasswordSubmit}>
-                            {/* ... (Password Form) ... */}
-                        </Form>
+                        <form onSubmit={handlePasswordSubmit}>
+                            {/* ... (Password Form from Customer View) ... */}
+                        </form>
                     );
                 default: return renderVendorDashboard();
             }
@@ -851,15 +946,40 @@ function MyPage({ onLoginClick }) {
         switch(activeView) {
             case 'security':
                 return (
-                    <Form onSubmit={handlePasswordSubmit}>
-                        <Form.Group className="mb-2"><Form.Label>Old Password</Form.Label><Form.Control type="password" name="oldPassword" value={passwordData.oldPassword} onChange={handlePasswordFormChange}/></Form.Group>
-                        <Form.Group className="mb-2"><Form.Label>New Password</Form.Label><Form.Control type="password" name="newPassword" value={passwordData.newPassword} onChange={handlePasswordFormChange}/></Form.Group>
-                        <Form.Group className="mb-2"><Form.Label>Confirm New Password</Form.Label><Form.Control type="password" name="confirmPassword" value={passwordData.confirmPassword} onChange={handlePasswordFormChange}/></Form.Group>
-                        <Button type="submit" disabled={passLoading} style={{ backgroundColor: '#28a745', borderColor: '#28a745', color: 'white' }}>Update Password</Button>
-                    </Form>
+                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Old Password</label>
+                            <input type="password" name="oldPassword" value={passwordData.oldPassword} onChange={handlePasswordFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">New Password</label>
+                            <input type="password" name="newPassword" value={passwordData.newPassword} onChange={handlePasswordFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                            <input type="password" name="confirmPassword" value={passwordData.confirmPassword} onChange={handlePasswordFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500" />
+                        </div>
+                        <button type="submit" disabled={passLoading} className="inline-flex items-center px-4 py-2 font-medium text-white bg-green-600 rounded-md shadow-sm hover:bg-green-700 transition disabled:opacity-50">
+                            Update Password
+                        </button>
+                    </form>
                 );
             case 'discounts':
-                return discounts.map(d => <Alert key={d.id}>{d.code}: {d.description} <Button size="sm" onClick={() => copyToClipboard(d.code)}>Copy</Button></Alert>);
+                return (
+                    <div className="space-y-3">
+                        {discounts.map(d => (
+                            <div key={d.id} className="p-4 rounded-md bg-blue-100 text-blue-700 flex justify-between items-center">
+                                <span><strong>{d.code}</strong>: {d.description}</span>
+                                <button 
+                                    className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 transition"
+                                    onClick={() => copyToClipboard(d.code)}
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                );
             case 'profile':
             default: 
                 return renderProfileView();
@@ -869,100 +989,141 @@ function MyPage({ onLoginClick }) {
     // "Guard Clause" for logged-out users
     if (!user) {
         return (
-            <Container className="my-5 p-5 text-center">
-                <Alert variant="warning" className="shadow-sm">
-                    <Alert.Heading>Please Log In</Alert.Heading>
-                    <p>You must be logged in to view your account details.</p>
-                    <hr />
-                    <Button variant="success" onClick={onLoginClick}>
-                        <FontAwesomeIcon icon={faSignInAlt} className="me-2" />
+            <div className="container mx-auto my-12 p-6 text-center">
+                <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-6 rounded-md shadow-md max-w-lg mx-auto">
+                    <h4 className="text-xl font-bold mb-2">Please Log In</h4>
+                    <p className="mb-4">You must be logged in to view your account details.</p>
+                    <hr className="my-4 border-yellow-400" />
+                    <button 
+                        className="inline-flex items-center px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition"
+                        onClick={onLoginClick}
+                    >
+                        <FontAwesomeIcon icon={faSignInAlt} className="mr-2" />
                         Log In / Register
-                    </Button>
-                </Alert>
-            </Container>
+                    </button>
+                </div>
+            </div>
         );
     }
     
     // --- Confirmation Modal (Reusable) ---
-    const ConfirmationModal = () => (
-        <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
-            <Modal.Header closeButton>
-                <Modal.Title>Confirm Action</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-                <Alert variant={confirmVariant}>{confirmMessage}</Alert>
-            </Modal.Body>
-            <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
-                    Cancel
-                </Button>
-                <Button variant={confirmVariant} onClick={handleConfirm}>
-                    Confirm
-                </Button>
-            </Modal.Footer>
-        </Modal>
-    );
+    const ConfirmationModal = () => {
+        if (!showConfirmModal) return null;
+
+        const variantClasses = {
+            danger: {
+                alert: 'bg-red-100 text-red-700',
+                button: 'bg-red-600 hover:bg-red-700 text-white'
+            },
+            primary: {
+                alert: 'bg-blue-100 text-blue-700',
+                button: 'bg-blue-600 hover:bg-blue-700 text-white'
+            },
+            success: {
+                alert: 'bg-green-100 text-green-700',
+                button: 'bg-green-600 hover:bg-green-700 text-white'
+            }
+        };
+        
+        const classes = variantClasses[confirmVariant] || variantClasses.primary;
+
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" aria-modal="true" role="dialog">
+                <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+                    <div className="flex justify-between items-center p-4 border-b">
+                        <h5 className="text-lg font-semibold">Confirm Action</h5>
+                        <button onClick={() => setShowConfirmModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                    </div>
+                    <div className="p-6">
+                        <div className={`p-4 rounded-md ${classes.alert}`}>
+                            {confirmMessage}
+                        </div>
+                    </div>
+                    <div className="flex justify-end space-x-3 p-4 bg-gray-50 rounded-b-lg">
+                        <button 
+                            className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 transition"
+                            onClick={() => setShowConfirmModal(false)}>
+                            Cancel
+                        </button>
+                        <button 
+                            className={`px-4 py-2 rounded-md font-semibold transition ${classes.button}`}
+                            onClick={handleConfirm}>
+                            Confirm
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     // ------------------- MAIN RETURN -------------------
-    // This now renders the correct sidebar based on role
     return (
-        <Container className="my-5">
-            <h2>{isAdmin ? "Admin Portal" : (isVendor ? (user.store_name || "Vendor Dashboard") : "My Account")}</h2>
-            <Row>
-                <Col md={4}>
-                    <Card className="text-center mb-4">
-                        <Card.Body>
-                            <FontAwesomeIcon icon={faUserCircle} size="4x" className="mb-2" style={{ color: isAdmin ? '#dc9635ff' : (isVendor ? '#d2d17fff' : '#003366') }}/>
-                            <h5>{user.username}</h5>
-                            <p>{user.email}</p>
-                            <span className={`badge ${isAdmin ? 'bg-danger' : (isVendor ? 'bg-success' : 'bg-primary')}`}>{user.role}</span>
-                        </Card.Body>
-                    </Card>
+        <div className="container mx-auto my-12 px-4">
+            <h2 className="text-3xl font-bold mb-6">
+                {isAdmin ? "Admin Portal" : (isVendor ? (user.store_name || "Vendor Dashboard") : "My Account")}
+            </h2>
+            <div className="flex flex-wrap -mx-4">
+                
+                {/* --- Sidebar --- */}
+                <div className="w-full md:w-1/3 px-4 mb-6 md:mb-0">
+                    <div className="bg-white rounded-lg shadow-md text-center p-6 mb-6">
+                        <FontAwesomeIcon 
+                            icon={faUserCircle} 
+                            className={`mb-3 text-6xl ${isAdmin ? 'text-yellow-500' : (isVendor ? 'text-lime-500' : 'text-green-600')}`}
+                        />
+                        <h5 className="text-xl font-semibold">{user.username}</h5>
+                        <p className="text-gray-600">{user.email}</p>
+                        <span className={`inline-block px-3 py-1 text-sm font-semibold text-white rounded-full ${
+                            isAdmin ? 'bg-yellow-500' : (isVendor ? 'bg-lime-600' : 'bg-green-600')
+                        }`}>{user.role}</span>
+                    </div>
                     
-                    {/* --- DYNAMIC NAVIGATION --- */}
-                    <Nav variant="pills" className="flex-column" activeKey={activeView} onSelect={k => setActiveView(k)}>
+                    {/* --- Dynamic Navigation --- */}
+                    <nav className="flex flex-col space-y-2">
                         
                         {/* 1. ADMIN NAV */}
                         {isAdmin && <>
-                            <Nav.Item><Nav.Link eventKey="admin-dashboard"style={{ color: activeView === 'admin-dashboard' ? 'white' : '#003366', backgroundColor: activeView === 'admin-dashboard' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faTachometerAlt} className="me-2"/> Dashboard</Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link eventKey="admin-vendors"style={{ color: activeView === 'admin-vendors' ? 'white' : '#003366', backgroundColor: activeView === 'admin-vendors' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faUsersCog} className="me-2"/> Vendor Apps</Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link eventKey="admin-products"style={{ color: activeView === 'admin-products' ? 'white' : '#003366', backgroundColor: activeView === 'admin-products' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faBoxOpen} className="me-2"/> Product Mgmt </Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link eventKey="admin-orders"   style={{ color: activeView === 'admin-orders' ? 'white' : '#003366', backgroundColor: activeView === 'admin-orders' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faListCheck} className="me-2"/> All Orders</Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link eventKey="admin-categories"style={{ color: activeView === 'admin-categories' ? 'white' : '#003366', backgroundColor: activeView === 'admin-categories' ? '#dc9135ff' : 'transparent', marginBottom: '5px', borderRadius: '5px'}}><FontAwesomeIcon icon={faTasks} className="me-2"/> Categories</Nav.Link></Nav.Item>
+                            <button onClick={() => setActiveView('admin-dashboard')} className={navLinkClasses('admin-dashboard', activeView, 'admin')}><FontAwesomeIcon icon={faTachometerAlt} className="mr-3 w-5"/> Dashboard</button>
+                            <button onClick={() => setActiveView('admin-vendors')} className={navLinkClasses('admin-vendors', activeView, 'admin')}><FontAwesomeIcon icon={faUsersCog} className="mr-3 w-5"/> Vendor Apps</button>
+                            <button onClick={() => setActiveView('admin-products')} className={navLinkClasses('admin-products', activeView, 'admin')}><FontAwesomeIcon icon={faBoxOpen} className="mr-3 w-5"/> Product Mgmt</button>
+                            <button onClick={() => setActiveView('admin-orders')} className={navLinkClasses('admin-orders', activeView, 'admin')}><FontAwesomeIcon icon={faListCheck} className="mr-3 w-5"/> All Orders</button>
+                            <button onClick={() => setActiveView('admin-categories')} className={navLinkClasses('admin-categories', activeView, 'admin')}><FontAwesomeIcon icon={faTasks} className="mr-3 w-5"/> Categories</button>
                         </>}
                         
                         {/* 2. VENDOR NAV */}
                         {isVendor && <>
-                            <Nav.Item><Nav.Link eventKey="vendor-dashboard" style={{ color: activeView === 'vendor-dashboard' ? 'white' : '#003366', backgroundColor: activeView === 'vendor-dashboard' ? '#b4c666ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faChartBar} className="me-2"/> Dashboard</Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link eventKey="vendor-products" style={{ color: activeView === 'vendor-products' ? 'white' : '#003366', backgroundColor: activeView === 'vendor-products' ? '#b4c666ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faBoxOpen} className="me-2"/> Products</Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link eventKey="vendor-orders"style={{ color: activeView === 'vendor-orders' ? 'white' : '#003366', backgroundColor: activeView === 'vendor-orders' ? '#b4c666ff' : 'transparent', marginBottom: '5px', borderRadius: '5px' }}><FontAwesomeIcon icon={faListCheck} className="me-2"/> Orders</Nav.Link></Nav.Item>
+                            <button onClick={() => setActiveView('vendor-dashboard')} className={navLinkClasses('vendor-dashboard', activeView, 'vendor')}><FontAwesomeIcon icon={faChartBar} className="mr-3 w-5"/> Dashboard</button>
+                            <button onClick={() => setActiveView('vendor-products')} className={navLinkClasses('vendor-products', activeView, 'vendor')}><FontAwesomeIcon icon={faBoxOpen} className="mr-3 w-5"/> Products</button>
+                            <button onClick={() => setActiveView('vendor-orders')} className={navLinkClasses('vendor-orders', activeView, 'vendor')}><FontAwesomeIcon icon={faListCheck} className="mr-3 w-5"/> Orders</button>
                         </>}
 
                         {/* 3. SHARED (CUSTOMER/VENDOR) NAV */}
                         {!isAdmin && <>
-                            <Nav.Item><Nav.Link eventKey="profile" style={{ color: activeView === 'profile' ? 'white' : '#003366', backgroundColor: activeView === 'profile' ? '#28a745' : 'transparent', borderRadius: '5px', marginBottom: '5px' }}><FontAwesomeIcon icon={faUserCircle} className="me-2"/> Profile</Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link eventKey="security" style={{ color: activeView === 'security' ? 'white' : '#003366', backgroundColor: activeView === 'security' ? '#28a745' : 'transparent', borderRadius: '5px', marginBottom: '5px' }}><FontAwesomeIcon icon={faShieldAlt} className="me-2"/> Security</Nav.Link></Nav.Item>
-                            <Nav.Item><Nav.Link as={Link} to="/my-orders" style={{ color: '#003366', borderRadius: '5px', marginBottom: '5px' }}><FontAwesomeIcon icon={faTruck} className="me-2"/> My Orders</Nav.Link></Nav.Item>
+                            <button onClick={() => setActiveView('profile')} className={navLinkClasses('profile', activeView, isVendor ? 'vendor' : 'customer')}><FontAwesomeIcon icon={faUserCircle} className="mr-3 w-5"/> Profile</button>
+                            <button onClick={() => setActiveView('security')} className={navLinkClasses('security', activeView, isVendor ? 'vendor' : 'customer')}><FontAwesomeIcon icon={faShieldAlt} className="mr-3 w-5"/> Security</button>
+                            <Link to="/my-orders" className={navLinkClasses('__NEVER_ACTIVE__', activeView, isVendor ? 'vendor' : 'customer')}><FontAwesomeIcon icon={faTruck} className="mr-3 w-5"/> My Orders</Link>
                         </>}
 
                         {/* 4. CUSTOMER-ONLY NAV */}
                         {!isVendor && !isAdmin && (
-                            <Nav.Item><Nav.Link eventKey="discounts" style={{ color: activeView === 'discounts' ? 'white' : '#003366', backgroundColor: activeView === 'discounts' ? '#28a745' : 'transparent', borderRadius: '5px', marginBottom: '5px' }}><FontAwesomeIcon icon={faTag} className="me-2"/> Discounts</Nav.Link></Nav.Item>
+                            <button onClick={() => setActiveView('discounts')} className={navLinkClasses('discounts', activeView, 'customer')}><FontAwesomeIcon icon={faTag} className="mr-3 w-5"/> Discounts</button>
                         )}
-                    </Nav>
-                </Col>
+                    </nav>
+                </div>
                 
-                {/* --- CONTENT PANE --- */}
-                <Col md={8}>
+                {/* --- Content Pane --- */}
+                <div className="w-full md:w-2/3 px-4">
                     {/* Render a global error for the admin panel if something went wrong */}
-                    {isAdmin && adminError && <Alert variant="danger">{adminError}</Alert>}
+                    {isAdmin && adminError && !adminLoading && <div className="p-4 rounded-md bg-red-100 text-red-700 mb-4">{adminError}</div>}
                     
-                    <Card className="p-4">{renderActiveView()}</Card>
-                </Col>
-            </Row>
+                    <div className="bg-white rounded-lg shadow-md p-6 min-h-[400px]">
+                        {renderActiveView()}
+                    </div>
+                </div>
+            </div>
             
-            {showConfirmModal && <ConfirmationModal />}
-        </Container>
+            <ConfirmationModal />
+        </div>
     );
 }
 

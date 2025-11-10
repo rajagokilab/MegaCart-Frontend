@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getAuthToken } from '../components/auth'; // Adjust path if needed
+import { getAuthToken } from '../components/auth.js'; // Adjust path if needed
 
 // --- Constants ---
 const GUEST_CART_ID_KEY = 'guestCartId';
