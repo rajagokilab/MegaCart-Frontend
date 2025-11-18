@@ -2,20 +2,32 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faChevronRight, faUserCircle, faTruck } from '@fortawesome/free-solid-svg-icons';
-import 'bootstrap/dist/css/bootstrap.min.css';
-// 1. Import the useUser hook
-import { useUser } from '../context/UserContext.jsx'; 
+import { useUser } from '../context/UserContext.jsx';
 
-const VENDOR_GREEN = '#62AA46';
+// Olive theme colors
+const THEME_OLIVE = '#556B2F';
+const THEME_OLIVE_HOVER = '#4A5D27';
+const THEME_WHITE = '#ffffff';
 
-function LoginDropdown({ onLoginClick }) { 
+function LoginDropdown({ onLoginClick }) {
+    const { user, logout } = useUser();
     const [isOpen, setIsOpen] = useState(false);
-    
-    // 2. Get user and logout function from the context
-    const { user, logout } = useUser(); 
-
-    // 3. We no longer need local 'user' state or the useEffect
     const [timeoutId, setTimeoutId] = useState(null);
+
+    const handleMouseEnter = () => {
+        if (window.innerWidth < 992) return;
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            setTimeoutId(null);
+        }
+        if (!isOpen) setIsOpen(true);
+    };
+
+    const handleMouseLeave = () => {
+        if (window.innerWidth < 992) return;
+        const id = setTimeout(() => setIsOpen(false), 300);
+        setTimeoutId(id);
+    };
 
     const handleTriggerClick = () => {
         if (timeoutId) {
@@ -25,76 +37,69 @@ function LoginDropdown({ onLoginClick }) {
         setIsOpen(!isOpen);
     };
 
-    const handleMouseEnter = () => {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-            setTimeoutId(null);
-        }
-        if (!isOpen) setIsOpen(true);
-    };
-
-    const handleMouseLeave = () => {
-        if (user) {
-            setIsOpen(false);
-            return;
-        }
-        const id = setTimeout(() => setIsOpen(false), 300);
-        setTimeoutId(id);
-    };
-
     const handleLoginCtaClick = () => {
-        if (onLoginClick) onLoginClick(); 
+        if (onLoginClick) onLoginClick();
+        setIsOpen(false);
     };
 
-    // 4. This is now much simpler!
     const handleLogout = () => {
-        logout(); // This calls the context's logout function
+        logout();
         setIsOpen(false);
-        // No window.location.reload() needed!
     };
 
     return (
-        <div 
-            className="text-center mx-3 position-relative"
+        <div
+            className="relative text-center"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            onClick={(e) => e.stopPropagation()}
         >
-            <div 
-                className="d-flex flex-column align-items-center" 
-                onClick={handleTriggerClick} 
-                style={{ cursor: 'pointer' }}
+            {/* Trigger Icon (white profile icon) */}
+            <div
+                className="flex items-center cursor-pointer"
+                onClick={handleTriggerClick}
             >
-                <FontAwesomeIcon icon={faUser} size="lg" className="mb-1 text-success" />
-                <span className="text-decoration-none text-dark small">
-                    {/* 5. This 'user' is now from the context and always up-to-date */}
-                    {user ? user.username || user.email : 'Log in'}
-                </span>
+                <FontAwesomeIcon icon={faUser} className="text-xl text-white" />
             </div>
 
+            {/* Dropdown Menu */}
             {isOpen && (
-                <div 
-                    className="position-absolute bg-white p-4 shadow-lg rounded"
-                    style={{ zIndex: 1050, top: '100%', right: '-50%', minWidth: '300px' }}
+                <div
+                    className="absolute bg-white p-3 shadow-lg rounded-lg z-[100] top-full mt-2 right-0 w-full lg:w-[300px] lg:max-w-[300px] lg:-right-1/2"
+                    onMouseEnter={handleMouseEnter}
                 >
                     {!user ? (
                         <>
-                            <button 
-                                className="btn btn-block w-100 py-2 rounded"
-                                style={{ backgroundColor: VENDOR_GREEN, color: 'white', fontWeight: 'bold' }}
-                                onClick={handleLoginCtaClick} 
+                            <button
+                                className="w-full py-2 rounded-md font-bold text-white"
+                                style={{ backgroundColor: THEME_OLIVE }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE_HOVER}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE}
+                                onClick={handleLoginCtaClick}
                             >
                                 Log in
                             </button>
-                            <p className="mt-3 mb-4 text-center small">
-                                Don't have an account? <a href="#" className="text-decoration-none fw-bold text-success" onClick={handleLoginCtaClick}>Register here</a>
+                            <p className="mt-3 mb-4 text-center text-sm text-[#556B2F]">
+                                Don't have an account?{' '}
+                                <button
+                                    className="font-bold bg-transparent border-none p-0"
+                                    style={{ color: THEME_OLIVE }}
+                                    onClick={handleLoginCtaClick}
+                                >
+                                    Register here
+                                </button>
                             </p>
                         </>
                     ) : (
                         <>
-                            <p className="small text-center mb-2">Logged in as <strong>{user.username || user.email}</strong></p>
-                            <button 
-                                className="btn btn-block w-100 py-2 rounded mb-3"
-                                style={{ backgroundColor: '#d9534f', color: 'white', fontWeight: 'bold' }}
+                            <p className="text-sm text-center mb-2 text-[#556B2F]">
+                                Logged in as <strong>{user.username || user.email}</strong>
+                            </p>
+                            <button
+                                className="w-full py-2 rounded-md font-bold text-white"
+                                style={{ backgroundColor: THEME_OLIVE }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE_HOVER}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE}
                                 onClick={handleLogout}
                             >
                                 Log out
@@ -102,24 +107,25 @@ function LoginDropdown({ onLoginClick }) {
                         </>
                     )}
 
-                    <hr className="my-2" />
+                    <hr className="border-t my-2 border-gray-300" />
 
-                    <div className="list-group list-group-flush mt-3">
-                        {[ 
+                    <div className="mt-3 space-y-1 ">
+                        {[
                             { icon: faUserCircle, text: 'My page', path: '/my-page' },
                             { icon: faTruck, text: 'My Orders', path: '/my-orders' },
                         ].map((item, index) => (
-                            <Link 
-                                key={index} 
-                                to={item.path} 
-                                className="list-group-item list-group-item-action border-0 d-flex justify-content-between align-items-center p-2 bg-white"
-                                onClick={() => setIsOpen(false)} // Close dropdown on click
+                            <Link
+                                key={index}
+                                to={item.path}
+                                className="flex justify-between items-center p-2 rounded-md hover:bg-[#f0f5eb] text-[#556B2F] no-underline text-sm"
+                                onClick={() => setIsOpen(false)}
+                                style={{ textDecoration: 'none' }} // Ensures no underline
                             >
-                                <div className="d-flex align-items-center">
-                                    <FontAwesomeIcon icon={item.icon} className="me-3 text-dark" />
+                                <div className="flex items-center">
+                                    <FontAwesomeIcon icon={item.icon} className="mr-3 w-5 text-[#556B2F]" />
                                     <span>{item.text}</span>
                                 </div>
-                                <FontAwesomeIcon icon={faChevronRight} className="small text-muted" />
+                                <FontAwesomeIcon icon={faChevronRight} className="text-sm text-[#556B2F]" />
                             </Link>
                         ))}
                     </div>

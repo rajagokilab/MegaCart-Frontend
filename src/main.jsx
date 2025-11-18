@@ -1,10 +1,13 @@
-// src/main.jsx (or main.tsx)
+// src/main.jsx
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-// ⭐️ Import the Bootstrap CSS file here
+
+// Bootstrap (CSS + JS)
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

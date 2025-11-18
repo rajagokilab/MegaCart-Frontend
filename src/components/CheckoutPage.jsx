@@ -1,14 +1,24 @@
 /* src/components/CheckoutPage.jsx */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Container, Spinner, Alert, Button, Modal, Row, Col, ListGroup, Form, Card } from 'react-bootstrap'; 
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import LoginFormModal from './LoginFormModal.jsx'; 
 import { getCachedUser, getAuthToken, logout } from './auth'; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLock, faCreditCard, faTruck, faUserCheck, faWallet, faMapMarkerAlt, faEdit, faSave } from '@fortawesome/free-solid-svg-icons'; 
-import { useLocation } from 'react-router-dom';
+import { 
+  faLock, faCreditCard, faTruck, faUserCheck, faWallet, 
+  faMapMarkerAlt, faEdit, faSave, faTimes, faSpinner, faChevronLeft
+} from '@fortawesome/free-solid-svg-icons'; 
 
+// --- THEME COLOR CONSTANTS ---
+const OLIVE_THEME = {
+  main: '#7A8450',
+  dark: '#5F673C',
+  light: '#F0F2E9',
+  text: '#333333',
+};
+
+// --- Helper Functions ---
 const calculateGrandTotal = (items) => {
     return items.reduce((sum, item) => {
         const price = item.product_details?.price || 0;
@@ -16,22 +26,20 @@ const calculateGrandTotal = (items) => {
         return sum + price * quantity;
     }, 0);
 };
+
 // --- Constants ---
 const API = import.meta.env.VITE_API_URL;
 const GUEST_CART_ID_KEY = 'guestCartId';
-
 const RAZORPAY_KEY_ID = 'rzp_test_Rc49M6OPR7fOLP'; 
 const CART_DETAIL_URL = `${API}/cart/detail/`;
 const ORDER_CREATE_URL = `${API}/orders/create/`;
 const VERIFY_PAYMENT_URL = `${API}/orders/verify/`;
 const USER_ADDRESS_SAVE_URL = `${API}/users/save_address/`;
 
-
 // ------------------------------------------------------------------
-// --- PaymentModal Component (No changes) ---
+// --- PaymentModal Component ---
 // ------------------------------------------------------------------
 function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, shippingAddress }) {
-    // ... (This entire component is unchanged)
     const navigate = useNavigate(); 
     const [isProcessing, setIsProcessing] = useState(false);
     
@@ -41,15 +49,11 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
             script.src = 'https://checkout.razorpay.com/v1/checkout.js';
             script.async = true;
             document.body.appendChild(script);
-            
             return () => {
-                if (document.body.contains(script)) {
-                    document.body.removeChild(script);
-                }
+                if (document.body.contains(script)) document.body.removeChild(script);
             };
         }
     }, [show]);
-
 
     const handleInitiatePayment = async () => {
         setIsProcessing(true);
@@ -72,7 +76,7 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
 
             const payload = { 
                 grand_total: grandTotal,
-                shipping_details: shippingAddress,
+                shipping_address: shippingAddress,
                 items: itemsPayload 
             };
             
@@ -80,6 +84,7 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
                  throw new Error('Internal cart error: No items found for payment.');
             }
 
+            // 1. CREATE ORDER ON BACKEND
             const orderResponse = await fetch(ORDER_CREATE_URL, {
                 method: 'POST',
                 headers: headers,
@@ -91,7 +96,7 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
                     logout();
                     handleClose();
                     if (setShowLogin) setShowLogin(true); 
-                    throw new Error('Your session has expired. Please log in again to complete the payment.');
+                    throw new Error('Your session has expired. Please log in again.');
                 }
                 const errorData = await orderResponse.json();
                 throw new Error(errorData.error || 'Failed to create order on the server.');
@@ -99,20 +104,17 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
 
             const orderData = await orderResponse.json();
             const { razorpay_order_id, amount, currency } = orderData;
-            
             const user = getCachedUser();
 
             const options = {
                 key: RAZORPAY_KEY_ID, 
                 amount: amount, 
                 currency: currency, 
-                name: 'MegaCart E-commerce',
+                name: 'VetriCart',
                 description: 'Order Payment',
                 order_id: razorpay_order_id, 
-                
                 handler: async function (response) {
                     setIsProcessing(true); 
-                    
                     try {
                         const verificationResponse = await fetch(VERIFY_PAYMENT_URL, {
                             method: 'POST',
@@ -128,18 +130,18 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
                         });
 
                         if (!verificationResponse.ok) {
-                            throw new Error('Payment verification failed on server.');
+                            const errorData = await verificationResponse.json();
+                            throw new Error(errorData.error || 'Payment verification failed.');
                         }
                         
                         alert('Payment Successful! Your order has been placed.');
                         localStorage.removeItem(GUEST_CART_ID_KEY); 
                         window.dispatchEvent(new Event("authChanged")); 
-
                         handleClose();
                         navigate('/my-orders'); 
 
                     } catch (verifyError) {
-                        alert(`Payment verification failed: ${verifyError.message}. Please contact support.`);
+                        alert(`Payment verification failed: ${verifyError.message}.`);
                         setIsProcessing(false);
                     }
                 },
@@ -149,7 +151,7 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
                     contact: shippingAddress.phone || '', 
                 },
                 theme: {
-                    color: '#EE82EE'
+                    color: OLIVE_THEME.main 
                 },
                 modal: {
                     ondismiss: function() {
@@ -163,12 +165,11 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
                 alert(`Payment failed: ${response.error.description}`);
                 setIsProcessing(false);
             });
-            
             rzp.open();
 
         } catch (error) {
             console.error('Error initiating payment:', error);
-            if (error.message !== 'Your session has expired. Please log in again to complete the payment.') {
+            if (error.message !== 'Your session has expired. Please log in again.') {
                  alert(error.message || 'Failed to initiate payment. Please try again.');
             }
             setIsProcessing(false); 
@@ -177,44 +178,58 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
 
     const displayAmount = grandTotal.toFixed(2);
     
+    if (!show) return null; 
+    
     return (
-        <Modal show={show} onHide={handleClose} centered>
-            <Modal.Header closeButton>
-                <Modal.Title className="fw-bold"><FontAwesomeIcon icon={faCreditCard} className="me-2" /> Finalize Payment</Modal.Title>
-            </Modal.Header>
-            <Modal.Body className="p-4">
-                
-                <div className="text-center mb-4 p-3 rounded" style={{ 
-                    background: 'linear-gradient(to right, #FFDAB9, #FFC0CB)',
-                    color: '#4B0082' 
-                }}>
-                    <h5 className="mb-0">Total Amount:</h5>
-                    <h1 className="fw-bolder" style={{ fontSize: '2.5rem' }}>
-                        ₹{displayAmount}
-                    </h1>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
+                {/* Modal Header */}
+                <div className="flex justify-between items-center p-5 border-b" style={{ borderColor: OLIVE_THEME.light }}>
+                    <h5 className="text-xl font-bold text-gray-800 flex items-center">
+                        <FontAwesomeIcon icon={faCreditCard} className="mr-3" style={{ color: OLIVE_THEME.main }} />
+                        Finalize Payment
+                    </h5>
+                    <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <FontAwesomeIcon icon={faTimes} size="lg" />
+                    </button>
                 </div>
 
-                <p className="text-center text-muted small">
-                    Click 'Pay Now' to open the secure Razorpay checkout interface.
-                </p>
+                {/* Modal Body */}
+                <div className="p-6">
+                    <div className="text-center mb-6 p-5 rounded-lg border border-dashed" 
+                         style={{ backgroundColor: OLIVE_THEME.light, borderColor: OLIVE_THEME.dark }}>
+                        <h5 className="mb-2 font-semibold uppercase tracking-wider text-xs" style={{ color: OLIVE_THEME.dark }}>Total Amount Payable</h5>
+                        <h1 className="font-bold text-4xl sm:text-5xl" style={{ color: OLIVE_THEME.main }}>
+                            ₹{displayAmount}
+                        </h1>
+                    </div>
 
-                <div className="d-grid gap-2">
-                    <Button 
+                    <p className="text-center text-gray-500 text-sm mb-6">
+                        You will be redirected to the secure Razorpay payment gateway.
+                    </p>
+
+                    <button
                         onClick={handleInitiatePayment} 
-                        className="btn-lg mt-4" 
-                        style={{ backgroundColor: '#EE82EE', borderColor: '#EE82EE', fontWeight: 'bold' }}
+                        className="w-full text-lg font-bold text-white py-3.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex justify-center items-center transform hover:-translate-y-0.5"
+                        style={{ backgroundColor: OLIVE_THEME.main }}
                         disabled={isProcessing} 
                     >
-                        {isProcessing ? <Spinner as="span" size="sm" animation="border" className="me-2" /> : `Pay ₹${displayAmount} Now`}
-                    </Button>
+                        {isProcessing ? (
+                            <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
+                        ) : (
+                            <>
+                                Pay Now <FontAwesomeIcon icon={faLock} className="ml-2 text-sm opacity-70" />
+                            </>
+                        )}
+                    </button>
                 </div>
-            </Modal.Body>
-        </Modal>
+            </div>
+        </div>
     );
 }
 
 // ------------------------------------------------------------------
-// --- CheckoutPage Component (Main Export) ---
+// --- CheckoutPage Component (Main) ---
 // ------------------------------------------------------------------
 
 function CheckoutPage() {
@@ -237,30 +252,21 @@ function CheckoutPage() {
         phone: ''
     });
     const [isEditingAddress, setIsEditingAddress] = useState(true); 
-    
-    // 💰 --- START: VALIDATION STATE CHANGES ---
-    // Changed addressError to an object for field-specific errors
     const [addressErrors, setAddressErrors] = useState({}); 
-    // Added a separate state for success messages
     const [addressSuccess, setAddressSuccess] = useState(null); 
     const [isSavingAddress, setIsSavingAddress] = useState(false); 
-    // 💰 --- END: VALIDATION STATE CHANGES ---
 
-
+    // ... (Keep getCartHeaders and fetchCart logic same as provided) ...
     const getCartHeaders = () => {
-        // ... (this function is unchanged)
         const headers = { 'Content-Type': 'application/json' };
         const authToken = getAuthToken();
-        if (authToken) {
-            headers['Authorization'] = `JWT ${authToken}`;
-        }
+        if (authToken) headers['Authorization'] = `JWT ${authToken}`;
         const guestCartId = localStorage.getItem(GUEST_CART_ID_KEY);
         if (guestCartId) headers['X-Guest-Cart-Id'] = guestCartId;
         return headers;
     };
 
     const fetchCart = async () => {
-        // ... (this function is unchanged)
         setLoading(true);
         setError(null);
         try {
@@ -276,14 +282,6 @@ function CheckoutPage() {
             }
             const data = await response.json();
             setCart(data);
-            
-            // 💰 Load saved address from user data (from 'data', not 'user')
-            if (user && data.shipping_address) {
-                 setShippingAddress(data.shipping_address);
-                 setIsEditingAddress(false);
-                 // Clear errors if we just loaded a valid address
-                 setAddressErrors({}); 
-            }
         } catch (err) {
             console.error('Checkout fetch error:', err);
             setError('Network error fetching cart.');
@@ -294,45 +292,32 @@ function CheckoutPage() {
     };
 
     useEffect(() => {
-  const handleAuthChange = () => {
-    const freshUser = getCachedUser();
-    setUser(freshUser);
-    if (freshUser) {
-      setShippingAddress(prev => ({ ...prev, name: freshUser.username || freshUser.email }));
-    }
-    fetchCart();
-  };
+        const handleAuthChange = () => {
+            const freshUser = getCachedUser();
+            setUser(freshUser);
+            if (freshUser) {
+                setShippingAddress(prev => ({ ...prev, name: freshUser.username || freshUser.email }));
+            }
+            fetchCart();
+        };
 
-  // Check if we got Buy Now items via state
-  if (location.state?.checkoutItems) {
-    setCart({ items: location.state.checkoutItems, grand_total: calculateGrandTotal(location.state.checkoutItems) });
-    setLoading(false); // no need to fetch normal cart
-  } else {
-    fetchCart();
-  }
+        if (location.state?.checkoutItems) {
+            setCart({ items: location.state.checkoutItems, grand_total: calculateGrandTotal(location.state.checkoutItems) });
+            setLoading(false);
+        } else {
+            fetchCart();
+        }
 
-  window.addEventListener("authChanged", handleAuthChange);
-  return () => window.removeEventListener("authChanged", handleAuthChange);
-}, []);
+        window.addEventListener("authChanged", handleAuthChange);
+        return () => window.removeEventListener("authChanged", handleAuthChange);
+    }, []);
 
-
-    
-    // 💰 --- START: UPDATED VALIDATION LOGIC ---
-    
-    // This function now checks fields individually and sets specific errors
     const validateAddress = () => {
         const errors = {};
-        if (!shippingAddress.name.trim()) {
-            errors.name = "Recipient name is required.";
-        }
-        if (!shippingAddress.street.trim()) {
-            errors.street = "Street address is required.";
-        }
-        if (!shippingAddress.city.trim()) {
-            errors.city = "City / Zip Code is required.";
-        }
+        if (!shippingAddress.name.trim()) errors.name = "Recipient name is required.";
+        if (!shippingAddress.street.trim()) errors.street = "Street address is required.";
+        if (!shippingAddress.city.trim()) errors.city = "City / Zip Code is required.";
         
-        // Phone validation (10 digits)
         const phoneRegex = /^\d{10}$/;
         if (!shippingAddress.phone.trim()) {
             errors.phone = "Phone number is required.";
@@ -341,13 +326,10 @@ function CheckoutPage() {
         }
         
         setAddressErrors(errors);
-        // Return true if the errors object is empty
         return Object.keys(errors).length === 0; 
     };
 
-    // HANDLER FOR SAVING ADDRESS
     const handleSaveAddress = async () => {
-        // Clear old messages
         setAddressSuccess(null);
         setAddressErrors({});
 
@@ -357,12 +339,18 @@ function CheckoutPage() {
         }
         
         setIsSavingAddress(true);
-        
         try {
             const authToken = getAuthToken();
-            if (!authToken) {
-                throw new Error("You must be logged in to save an address.");
-            }
+            if (!authToken) throw new Error("You must be logged in to save an address.");
+
+            const addressPayload = { 
+                name: shippingAddress.name,
+                phone: shippingAddress.phone,
+                address: shippingAddress.street,
+                city: shippingAddress.city,
+                zip: shippingAddress.city, 
+                country: shippingAddress.country
+            };
 
             const response = await fetch(USER_ADDRESS_SAVE_URL, {
                 method: 'POST',
@@ -370,25 +358,19 @@ function CheckoutPage() {
                     'Content-Type': 'application/json',
                     'Authorization': `JWT ${authToken}`,
                 },
-                body: JSON.stringify(shippingAddress),
+                body: JSON.stringify(addressPayload),
             });
 
             if (!response.ok) {
-                try {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || errorData.error || 'Failed to save address on server.');
-                } catch (e) {
-                    throw new Error("API configuration error. Check Django URL and View permission.");
-                }
+                const errorData = await response.json();
+                throw new Error(errorData.detail || errorData.error || 'Failed to save address.');
             }
 
-            // Success
             setIsEditingAddress(false);
-            setAddressSuccess("Address successfully saved!"); // Use the new success state
-            setAddressErrors({}); // Clear any previous errors
+            setAddressSuccess("Address successfully saved!"); 
+            setAddressErrors({}); 
         } catch (error) {
             console.error("Address save error:", error);
-            // Set a general form error
             setAddressErrors({ form: error.message }); 
         } finally {
             setIsSavingAddress(false);
@@ -397,307 +379,334 @@ function CheckoutPage() {
     
     const handleAddressChange = (e) => {
         const { name, value } = e.target;
-        setShippingAddress(prev => ({
-            ...prev,
-            [name]: value
-        }));
-
-        // 💰 Clear the error for this specific field when user starts typing
-        if (addressErrors[name]) {
-            setAddressErrors(prev => ({ ...prev, [name]: null }));
-        }
-        // 💰 Clear global success/form errors
+        setShippingAddress(prev => ({ ...prev, [name]: value }));
+        if (addressErrors[name]) setAddressErrors(prev => ({ ...prev, [name]: null }));
         setAddressSuccess(null);
-        if (addressErrors.form) {
-            setAddressErrors(prev => ({ ...prev, form: null }));
-        }
+        if (addressErrors.form) setAddressErrors(prev => ({ ...prev, form: null }));
     };
-    // 💰 --- END: UPDATED VALIDATION LOGIC ---
-
 
     const handlePlaceOrder = () => {
-        // 💰 Updated logic to use new validation
         if (!user) {
             alert("Please log in to proceed.");
             setShowLogin(true); 
         } else if (isEditingAddress) {
-             alert("Please save your shipping address before proceeding to payment.");
-             // Set focus or highlight the save button
+             alert("Please save your shipping address before proceeding.");
         } else if (!validateAddress()) {
              alert("Your saved address is incomplete. Please edit and re-save.");
-             setIsEditingAddress(true); // Open editor
+             setIsEditingAddress(true);
         } else {
             setShowPayment(true); 
         }
     };
 
     const handleLoginSuccess = (loggedInUser) => {
-        // ... (this function is unchanged)
         setUser(loggedInUser);
         setShowLogin(false);
         setIsEditingAddress(true); 
     };
 
-    if (loading) return <Container className="p-5 text-center"><Spinner animation="border" /></Container>;
+    // --- RENDER STATES ---
+    if (loading) return (
+        <div className="flex justify-center items-center min-h-[60vh]">
+            <FontAwesomeIcon icon={faSpinner} className="animate-spin text-4xl" style={{ color: OLIVE_THEME.main }} />
+        </div>
+    );
+
     if (error) return (
-        <Container className="p-5 text-center">
-            <Alert variant="danger">{error}</Alert>
-            <Button onClick={() => navigate('/')}>Go Back</Button>
-        </Container>
+        <div className="container mx-auto max-w-lg p-6 text-center mt-10">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-sm" role="alert">
+                <p className="font-bold mb-2">Oops!</p>
+                {error}
+            </div>
+            <button onClick={() => navigate('/')} className="mt-6 px-6 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-all">
+                Go Back Home
+            </button>
+        </div>
     );
 
     const cartItems = cart?.items || [];
     const grandTotal = cart?.grand_total || 0;
 
     if (!cartItems.length) return (
-        <Container className="p-5 text-center">
-            <Alert variant="info">Your cart is empty!</Alert>
-            <Button onClick={() => navigate('/')}>Continue Shopping</Button>
-        </Container>
+        <div className="container mx-auto max-w-lg p-6 text-center mt-12">
+            <div className="bg-[#F0F2E9] border border-[#7A8450] text-[#5F673C] px-6 py-8 rounded-xl shadow-sm" role="alert">
+                <FontAwesomeIcon icon={faWallet} className="text-4xl mb-3 opacity-50"/>
+                <p className="text-lg font-semibold">Your cart is currently empty.</p>
+            </div>
+            <button onClick={() => navigate('/')} 
+                className="mt-6 px-8 py-3 text-white font-medium rounded-lg shadow hover:shadow-md transition-all"
+                style={{ backgroundColor: OLIVE_THEME.main }}
+            >
+                Continue Shopping
+            </button>
+        </div>
     );
 
     const isCheckoutDisabled = !user || isEditingAddress || !shippingAddress.street.trim();
 
+    // --- HELPER: Input Class Generator for consistency ---
+    const inputClass = (errorState) => `
+        mt-1 block w-full rounded-lg shadow-sm sm:text-sm py-2.5 px-3 border 
+        ${errorState ? 'border-red-500 bg-red-50' : 'border-gray-300'} 
+        focus:ring-2 focus:ring-opacity-50 focus:outline-none transition-all
+    `;
+
     return (
-        <Container className="py-5">
-            <h1 className="mb-5 text-center fw-bold">
-                <FontAwesomeIcon icon={faTruck} className="me-3 text-secondary" /> Secure Checkout
-            </h1>
-            
-            <Row>
-                {/* --- LEFT COLUMN: DETAILS & AUTH CHECK --- */}
-                <Col lg={7} className="mb-4">
+        <div className="min-h-screen bg-gray-50 py-8 lg:py-12">
+            <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                
+                {/* Header / Breadcrumbish */}
+                <div className="mb-8 flex items-center justify-center relative">
+                    <button onClick={() => navigate(-1)} className="absolute left-0 text-gray-500 hover:text-gray-800 lg:hidden">
+                        <FontAwesomeIcon icon={faChevronLeft} className="mr-1" /> Back
+                    </button>
+                    <h1 className="text-2xl lg:text-4xl font-bold text-gray-800 flex items-center">
+                        <FontAwesomeIcon icon={faTruck} className="mr-3" style={{ color: OLIVE_THEME.main }} /> 
+                        Secure Checkout
+                    </h1>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
                     
-                    {/* --- STEP 1: AUTHENTICATION STATUS --- */}
-                    <h4 className="fw-bold mb-3">1. Authentication</h4>
-                    <div className="p-4 border rounded shadow-sm bg-light mb-4">
-                        {!user ? (
-                            <Alert variant="warning" className="d-flex align-items-center">
-                                <FontAwesomeIcon icon={faLock} className="me-3 fs-4" />
-                                <div>
-                                    You are checking out as a **Guest**. Please log in to save your details.
-                                    {/* <Button variant="outline-warning" size="sm" className="ms-3 fw-bold" onClick={() => setShowLogin(true)}>
-                                        Log In / Register
-                                    </Button> */}
-                                </div>
-                            </Alert>
-                        ) : (
-                            <Alert variant="success" className="d-flex align-items-center">
-                                <FontAwesomeIcon icon={faUserCheck} className="me-3 fs-4" />
-                                Logged in as: **{user.username || user.email}**
-                            </Alert>
-                        )}
-                    </div>
-                    
-                    {/* --- STEP 2: SHIPPING ADDRESS --- */}
-                    <h4 className="fw-bold mb-3">2. Shipping Address</h4>
-                    <div className="p-4 border rounded shadow-sm bg-white">
+                    {/* --- LEFT COLUMN: DETAILS & AUTH CHECK --- */}
+                    <div className="lg:col-span-7 space-y-6 lg:space-y-8">
                         
-                        {/* 💰 --- START: UPDATED ERROR/SUCCESS RENDERING --- */}
-                        {addressSuccess && <Alert variant="success">{addressSuccess}</Alert>}
-                        {addressErrors.form && <Alert variant="danger">{addressErrors.form}</Alert>}
-                        {/* 💰 --- END: UPDATED ERROR/SUCCESS RENDERING --- */}
-
-                        
-                        {isEditingAddress || !shippingAddress.street ? (
-                            // Address Edit Form 
-                            <Form noValidate> {/* 💰 Added noValidate to disable browser validation */}
-                                <Row className="mb-3">
-                                    <Form.Group as={Col} controlId="formName">
-                                        <Form.Label>Recipient Name</Form.Label>
-                                        <Form.Control 
-                                            type="text" 
-                                            name="name" 
-                                            value={shippingAddress.name} 
-                                            onChange={handleAddressChange} 
-                                            required 
-                                            isInvalid={!!addressErrors.name} 
-                                        />
-                                        <Form.Control.Feedback type="invalid">
-                                            {addressErrors.name}
-                                        </Form.Control.Feedback>
-                                    </Form.Group>
-                                    <Form.Group as={Col} controlId="formPhone">
-                                        <Form.Label>Phone</Form.Label>
-                                        <Form.Control 
-                                            type="text" 
-                                            name="phone" 
-                                            value={shippingAddress.phone} 
-                                            onChange={handleAddressChange} 
-                                            required 
-                                            isInvalid={!!addressErrors.phone}
-                                            placeholder="10-digit number"
-                                        />
-                                        <Form.Control.Feedback type="invalid">
-                                            {addressErrors.phone}
-                                        </Form.Control.Feedback>
-                                    </Form.Group>
-                                </Row>
-                                <Form.Group className="mb-3" controlId="formStreet">
-                                    <Form.Label>Street Address</Form.Label>
-                                    <Form.Control 
-                                        type="text" 
-                                        name="street" 
-                                        value={shippingAddress.street} 
-                                        onChange={handleAddressChange} 
-                                        required 
-                                        isInvalid={!!addressErrors.street}
-                                    />
-                                    <Form.Control.Feedback type="invalid">
-                                        {addressErrors.street}
-                                    </Form.Control.Feedback>
-                                </Form.Group>
-                                <Form.Group className="mb-3" controlId="formCity">
-                                    <Form.Label>City / Zip Code</Form.Label>
-                                    <Form.Control 
-                                        type="text" 
-                                        name="city" 
-                                        value={shippingAddress.city} 
-                                        onChange={handleAddressChange} 
-                                        required 
-                                        isInvalid={!!addressErrors.city}
-                                    />
-                                    <Form.Control.Feedback type="invalid">
-                                        {addressErrors.city}
-                                    </Form.Control.Feedback>
-                                </Form.Group>
-                                <Form.Group className="mb-3" controlId="formCountry">
-                                    <Form.Label>Country</Form.Label>
-                                    <Form.Control 
-                                        type="text" 
-                                        name="country" 
-                                        value={shippingAddress.country} 
-                                        onChange={handleAddressChange} 
-                                        required 
-                                    />
-                                </Form.Group>
-                                
-                                <Button 
-                                    variant="success" 
-                                    onClick={handleSaveAddress} 
-                                    className="mt-3" 
-                                    disabled={!user || isSavingAddress}
-                                >
-                                    <FontAwesomeIcon icon={faSave} className="me-2" />
-                                    {isSavingAddress ? <Spinner as="span" size="sm" animation="border" /> : (user ? 'Save Address' : 'Log in to Save')}
-                                </Button>
-                            </Form>
-                        ) : (
-                            // Address Display
-                            <div>
-                                <p className="text-primary fw-bold fs-5 mb-1">
-                                    <FontAwesomeIcon icon={faMapMarkerAlt} className="me-2" /> Current Delivery Address
-                                </p>
-                                <ListGroup variant="flush" className="mb-3 border rounded">
-                                    <ListGroup.Item>{shippingAddress.name} ({shippingAddress.phone})</ListGroup.Item>
-                                    <ListGroup.Item>{shippingAddress.street}</ListGroup.Item>
-                                    <ListGroup.Item>{shippingAddress.city}, {shippingAddress.country}</ListGroup.Item>
-                                </ListGroup>
-                                <Button 
-                                    variant="outline-secondary" 
-                                    size="sm" 
-                                    onClick={() => setIsEditingAddress(true)}
-                                >
-                                    <FontAwesomeIcon icon={faEdit} className="me-1" /> Change Address
-                                </Button>
-                            </div>
-                        )}
-                        
-                    </div>
-                </Col>
-
-                {/* --- RIGHT COLUMN: ORDER SUMMARY & PAYMENT CTA (No changes) --- */}
-                <Col lg={5}>
-                    <div className="p-4 border rounded shadow-lg sticky-top" style={{ top: '20px' }}>
-                        <h4 className="fw-bold mb-4">Order Summary</h4>
-                        
-                        <ListGroup variant="flush">
-                           {cartItems.map(item => (<ListGroup.Item key={item.id} className="d-flex align-items-center px-0 py-3">
-                                    
-                                    <img 
-                                        src={item.product_details?.image_url || 'https://placehold.co/60x60?text=Item'} 
-                                        alt={item.product_details?.name} 
-                                        style={{ 
-                                            width: '60px', 
-                                            height: '60px', 
-                                            objectFit: 'cover', 
-                                            borderRadius: '8px', 
-                                            marginRight: '15px' 
-                                        }}
-                                    />
-                                    
-                                    <div className="small me-auto">
-                                        <div className="fw-bold">{item.product_details?.name}</div>
-                                        <div className="text-muted">Quantity: {item.quantity}</div>
+                        {/* --- STEP 1: AUTHENTICATION STATUS --- */}
+                        <div className="bg-white p-6 lg:p-8 rounded-2xl shadow-sm border border-gray-100">
+                            <h4 className="text-xl font-bold text-gray-800 mb-5 flex items-center">
+                                <span className="bg-gray-800 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">1</span>
+                                Authentication
+                            </h4>
+                            {!user ? (
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl">
+                                    <div className="flex items-center mb-3 sm:mb-0">
+                                        <FontAwesomeIcon icon={faLock} className="mr-3 text-xl opacity-70" />
+                                        <span>Checking out as <strong>Guest</strong>.</span>
                                     </div>
-
-                                    <span className="fw-bold small">
-                                        ₹{(item.total_price || item.quantity * item.product_details.price).toFixed(2)}
-                                    </span>
-
-                                </ListGroup.Item>
-                            ))}
-                        </ListGroup>
-                        
-                        <hr />
-                        
-                        <div className="d-flex justify-content-between mb-3 fw-bold">
-                            <span>Subtotal:</span>
-                            <span>₹{grandTotal.toFixed(2)}</span>
+                                    <button onClick={() => setShowLogin(true)} className="text-sm font-bold underline hover:text-yellow-900">
+                                        Log in now
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center bg-[#F0F2E9] border border-[#7A8450] text-[#5F673C] p-4 rounded-xl">
+                                    <FontAwesomeIcon icon={faUserCheck} className="mr-3 text-xl" />
+                                    <span>Logged in as: <strong className="ml-1 text-gray-900">{user.username || user.email}</strong></span>
+                                </div>
+                            )}
                         </div>
-                        <div className="d-flex justify-content-between mb-4 text-muted small">
-                            <span>Shipping & Handling:</span>
-                            <span>Free</span>
-                        </div>
-
-                        <div className="d-flex justify-content-between fw-bolder fs-4 mb-4 text-success">
-                            <span>Total Due:</span>
-                            <span>₹{grandTotal.toFixed(2)}</span>
-                        </div>
-
-                        <Button 
-                            className="w-100 btn-success btn-lg" 
-                            onClick={handlePlaceOrder}
-                            disabled={isCheckoutDisabled} 
-                        >
-                            <FontAwesomeIcon icon={faWallet} className="me-2" /> 
-                            Proceed to Payment
-                        </Button>
                         
-                        {isCheckoutDisabled && (
-                             <p className="text-center text-danger small mt-2 fw-bold">
-                                 Please Log in AND Save your address.
-                             </p>
-                        )}
+                        {/* --- STEP 2: SHIPPING ADDRESS --- */}
+                        <div className="bg-white p-6 lg:p-8 rounded-2xl shadow-sm border border-gray-100">
+                            <h4 className="text-xl font-bold text-gray-800 mb-5 flex items-center">
+                                <span className="bg-gray-800 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">2</span>
+                                Shipping Address
+                            </h4>
+                            
+                            {addressSuccess && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-5 text-sm">{addressSuccess}</div>}
+                            {addressErrors.form && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-5 text-sm">{addressErrors.form}</div>}
 
-                        <p className="text-center text-muted small mt-2">
-                             <FontAwesomeIcon icon={faLock} className="me-1" /> Secure payment powered by Razorpay.
-                        </p>
+                            {isEditingAddress || !shippingAddress.street ? (
+                                // Address Edit Form 
+                                <form noValidate className="space-y-5 animate-fade-in"> 
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label htmlFor="formName" className="block text-sm font-medium text-gray-700 mb-1">Recipient Name</label>
+                                            <input 
+                                                type="text" id="formName" name="name" required placeholder="John Doe"
+                                                value={shippingAddress.name} onChange={handleAddressChange} 
+                                                className={inputClass(addressErrors.name)}
+                                                style={{ borderColor: addressErrors.name ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
+                                                onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
+                                                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                                            />
+                                            {addressErrors.name && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.name}</p>}
+                                        </div>
+                                        <div>
+                                            <label htmlFor="formPhone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                            <input 
+                                                type="tel" id="formPhone" name="phone" required placeholder="9876543210"
+                                                value={shippingAddress.phone} onChange={handleAddressChange} 
+                                                className={inputClass(addressErrors.phone)}
+                                                style={{ borderColor: addressErrors.phone ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
+                                                onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
+                                                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                                            />
+                                            {addressErrors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.phone}</p>}
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label htmlFor="formStreet" className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                                        <input 
+                                            type="text" id="formStreet" name="street" required placeholder="Flat No, Building, Street Area"
+                                            value={shippingAddress.street} onChange={handleAddressChange} 
+                                            className={inputClass(addressErrors.street)}
+                                            style={{ borderColor: addressErrors.street ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
+                                            onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
+                                            onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                                        />
+                                        {addressErrors.street && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.street}</p>}
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label htmlFor="formCity" className="block text-sm font-medium text-gray-700 mb-1">City / Zip Code</label>
+                                            <input 
+                                                type="text" id="formCity" name="city" required 
+                                                value={shippingAddress.city} onChange={handleAddressChange} 
+                                                className={inputClass(addressErrors.city)}
+                                                style={{ borderColor: addressErrors.city ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
+                                                onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
+                                                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                                            />
+                                            {addressErrors.city && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.city}</p>}
+                                        </div>
+                                        <div>
+                                            <label htmlFor="formCountry" className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                            <input 
+                                                type="text" id="formCountry" name="country" required 
+                                                value={shippingAddress.country} onChange={handleAddressChange} 
+                                                className={inputClass(false)}
+                                                style={{ outlineColor: OLIVE_THEME.main }}
+                                                onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
+                                                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    <button 
+                                        type="button"
+                                        onClick={handleSaveAddress} 
+                                        className="mt-4 w-full md:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent rounded-lg shadow-md text-sm font-bold text-white disabled:bg-gray-300 disabled:cursor-not-allowed transition-all hover:shadow-lg"
+                                        style={{ backgroundColor: OLIVE_THEME.main }}
+                                        disabled={!user || isSavingAddress}
+                                    >
+                                        <FontAwesomeIcon icon={isSavingAddress ? faSpinner : faSave} className={`mr-2 ${isSavingAddress && 'animate-spin'}`} />
+                                        {isSavingAddress ? 'Saving...' : (user ? 'Save Address' : 'Log in to Save')}
+                                    </button>
+                                </form>
+                            ) : (
+                                // Address Display Mode
+                                <div className="animate-fade-in">
+                                    <div className="flex items-center mb-3">
+                                        <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-lg" style={{ color: OLIVE_THEME.main }} /> 
+                                        <span className="font-bold text-gray-800">Delivery Location</span>
+                                    </div>
+                                    <div className="border rounded-xl p-4 md:p-5 bg-gray-50 text-gray-700 text-sm leading-relaxed relative">
+                                        <div className="font-bold text-gray-900 text-base mb-1">{shippingAddress.name}</div>
+                                        <div className="mb-2">{shippingAddress.phone}</div>
+                                        <div className="text-gray-600">{shippingAddress.street}, {shippingAddress.city}, {shippingAddress.country}</div>
+                                        
+                                        <button 
+                                            onClick={() => setIsEditingAddress(true)}
+                                            className="absolute top-4 right-4 text-gray-400 hover:text-blue-600 transition-colors"
+                                            title="Edit Address"
+                                        >
+                                            <FontAwesomeIcon icon={faEdit} />
+                                        </button>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsEditingAddress(true)}
+                                        className="mt-4 text-sm font-medium underline decoration-dotted hover:text-gray-900"
+                                        style={{ color: OLIVE_THEME.dark }}
+                                    >
+                                        Change Address
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </Col>
-            </Row>
 
-            {/* Login Modal */}
-            {showLogin && (
-                <LoginFormModal
-                    show={showLogin}
-                    handleClose={() => setShowLogin(false)}
-                    onLoginSuccess={handleLoginSuccess}
-                />
-            )}
-            
-            {/* Payment Modal (Passing all necessary props) */}
-            {showPayment && (
-                <PaymentModal
-                    show={showPayment}
-                    handleClose={() => setShowPayment(false)}
-                    grandTotal={grandTotal}
-                    cartItems={cartItems}
-                    setShowLogin={setShowLogin} 
-                    shippingAddress={shippingAddress} 
-                />
-            )}
-        </Container>
+                    {/* --- RIGHT COLUMN: ORDER SUMMARY --- */}
+                    <div className="lg:col-span-5">
+                        <div className="lg:sticky lg:top-24 bg-white p-6 lg:p-8 rounded-2xl shadow-xl border border-gray-100">
+                            <h4 className="text-xl font-bold text-gray-800 mb-6 pb-4 border-b border-gray-100">Order Summary</h4>
+                            
+                            <div className="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
+                                {cartItems.map(item => (
+                                <div key={item.id} className="flex items-center">
+                                    <div className="flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden w-16 h-16">
+                                        <img 
+                                            src={item.product_details?.image_url || 'https://placehold.co/60x60?text=Item'} 
+                                            alt={item.product_details?.name} 
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="ml-4 flex-grow">
+                                        <div className="text-sm font-semibold text-gray-800 line-clamp-1">{item.product_details?.name}</div>
+                                        <div className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity}</div>
+                                    </div>
+                                    <div className="text-sm font-bold text-gray-900">
+                                        ₹{(item.total_price || item.quantity * item.product_details.price).toFixed(2)}
+                                    </div>
+                                </div>
+                                ))}
+                            </div>
+                            
+                            <div className="border-t border-gray-100 pt-4 space-y-3">
+                                <div className="flex justify-between text-gray-600 text-sm">
+                                    <span>Subtotal</span>
+                                    <span>₹{grandTotal.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-gray-600 text-sm">
+                                    <span>Shipping</span>
+                                    <span className="text-green-600 font-medium">Free</span>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-dashed border-gray-300 my-5"></div>
+
+                            <div className="flex justify-between items-end mb-8">
+                                <span className="text-gray-800 font-bold">Total Amount</span>
+                                <span className="text-3xl font-bold" style={{ color: OLIVE_THEME.main }}>₹{grandTotal.toFixed(2)}</span>
+                            </div>
+
+                            <button 
+                                className="w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200 flex justify-center items-center disabled:opacity-60 disabled:cursor-not-allowed transform active:scale-95"
+                                onClick={handlePlaceOrder}
+                                disabled={isCheckoutDisabled}
+                                style={{ backgroundColor: isCheckoutDisabled ? '#9CA3AF' : OLIVE_THEME.main }}
+                            >
+                                <FontAwesomeIcon icon={faWallet} className="mr-2" /> 
+                                Proceed to Payment
+                            </button>
+                            
+                            {isCheckoutDisabled && (
+                                <div className="mt-3 text-center text-xs bg-red-50 text-red-600 py-2 px-3 rounded-lg">
+                                    {!user ? "Login required." : "Please save delivery address."}
+                                </div>
+                            )}
+
+                            <div className="mt-6 flex items-center justify-center text-gray-400 text-xs">
+                                <FontAwesomeIcon icon={faLock} className="mr-1.5" /> 
+                                Secure SSL Encryption
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Login Modal */}
+                {showLogin && (
+                    <LoginFormModal
+                        show={showLogin}
+                        handleClose={() => setShowLogin(false)}
+                        onLoginSuccess={handleLoginSuccess}
+                    />
+                )}
+                
+                {/* Payment Modal */}
+                {showPayment && (
+                    <PaymentModal
+                        show={showPayment}
+                        handleClose={() => setShowPayment(false)}
+                        grandTotal={grandTotal}
+                        cartItems={cartItems}
+                        setShowLogin={setShowLogin} 
+                        shippingAddress={shippingAddress} 
+                    />
+                )}
+            </div>
+        </div>
     );
 }
 

@@ -10,6 +10,10 @@
     transition: all 0.2s ease-in-out;
 }
 
+nav a {
+    text-decoration: none !important;
+}
+
 /* Hover + Active Animation */
 .nav-mypage .nav-link.active,
 .nav-mypage .nav-link:hover {

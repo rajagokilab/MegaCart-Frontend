@@ -2,9 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { setSessionData } from "./auth";
-import 'bootstrap/dist/css/bootstrap.min.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faTimes, faSpinner } from '@fortawesome/free-solid-svg-icons'; // Added faSpinner
+
+// --- THEME ---
+const OLIVE_THEME = {
+  main: '#7A8450',
+  dark: '#5F673C',
+  light: '#F0F2E9',
+};
 
 // --- Constants ---
 const VIEWS = {
@@ -15,26 +21,19 @@ const VIEWS = {
 // --- API base ---
 const API_BASE = import.meta.env.VITE_API_URL;
 
-
-// --- API Functions ---
+// --- API Functions (Unchanged) ---
 const apiLogin = async ({ email, password }) => {
   try {
     const response = await axios.post(`${API_BASE}/auth/jwt/create/`, { email, password });
     const { access, refresh } = response.data;
-
-    // Get user details
     const userResponse = await axios.get(`${API_BASE}/auth/users/me/`, {
       headers: { Authorization: `JWT ${access}` }
     });
-
     return { success: true, token: access, refresh, user: userResponse.data };
   } catch (err) {
-    // Handle 401 gracefully and prevent console.error
     if (err.response && err.response.status === 401) {
       return { success: false, message: 'Incorrect email or password.' };
     }
-
-    // Handle other errors
     return { success: false, message: 'Login failed. Please try again.' };
   }
 };
@@ -47,12 +46,9 @@ const apiRegister = async ({ email, username, password, confirmPassword, storeNa
       password,
       re_password: confirmPassword,
       role: isPrivate ? 'CUSTOMER' : 'VENDOR',
-      // Send the storeName field regardless of role (Django view should handle it)
       store_name: storeName 
     };
-
     await axios.post(`${API_BASE}/auth/users/`, payload);
-
     return { success: true, message: 'Registration successful!' };
   } catch (err) {
     return { success: false, message: err.response?.data?.email?.[0] || err.response?.data?.password?.[0] || 'Registration failed' };
@@ -83,12 +79,11 @@ function LoginFormModal({ show, handleClose, onLoginSuccess }) {
     e.preventDefault();
     setMessage(null);
     
-
     const isRegister = view === VIEWS.REGISTER;
     const isVendor = !isPrivate;
     let derivedUsername;
 
-    // --- Validation ---
+    // --- Validation (Unchanged) ---
     if (isRegister) {
         if (!email || !password || !confirmPassword || (isVendor && !storeName)) {
             setMessage({ type: 'error', text: 'Please fill in all required fields.' });
@@ -98,7 +93,7 @@ function LoginFormModal({ show, handleClose, onLoginSuccess }) {
             setMessage({ type: 'error', text: 'Passwords do not match.' });
             return;
         }
-    } else if (!email || !password) { // Login validation
+    } else if (!email || !password) {
         setMessage({ type: 'error', text: 'Please fill in both email and password.' });
         return;
     }
@@ -106,25 +101,20 @@ function LoginFormModal({ show, handleClose, onLoginSuccess }) {
 
     setIsLoading(true);
 
-    // --- Core Registration/Login Logic ---
+    // --- Core Registration/Login Logic (Unchanged) ---
     let result = null; 
-
     try {
       if (view === VIEWS.LOGIN) {
         result = await apiLogin({ email, password });
-
       } else { // VIEWS.REGISTER
-        
-        // 🛑 NEW LOGIC: Use storeName as username if it's a vendor account
         if (isVendor) {
             derivedUsername = storeName;
         } else {
             derivedUsername = email.split('@')[0];
         }
-
         result = await apiRegister({ 
             email, 
-            username: derivedUsername, // Pass the derived username
+            username: derivedUsername,
             password, 
             confirmPassword, 
             storeName, 
@@ -132,11 +122,10 @@ function LoginFormModal({ show, handleClose, onLoginSuccess }) {
         });
       }
 
-      // --- Handle Result ---
+      // --- Handle Result (Unchanged) ---
       if (result.success) {
-        
         if (view === VIEWS.REGISTER) {
-          setMessage({ type: 'success', text: 'Registration successful! Please log in with your new credentials.' });
+          setMessage({ type: 'success', text: 'Registration successful! Please log in.' });
           setView(VIEWS.LOGIN);
           setPassword(''); 
           setConfirmPassword('');
@@ -147,17 +136,13 @@ function LoginFormModal({ show, handleClose, onLoginSuccess }) {
           setMessage({ type: 'success', text: 'Login successful!' });
           if (onLoginSuccess) onLoginSuccess(result.user);
           window.dispatchEvent(new Event("authChanged"));
-
           handleClose(); 
         }
-        
       } else {
         let errorText = result.message;
-        
         if (errorText === 'Incorrect email or password.') {
           errorText = 'Incorrect password. Please check your credentials or register first.';
         }
-        
         setMessage({ type: 'error', text: errorText });
       }
     } catch {
@@ -175,103 +160,176 @@ function LoginFormModal({ show, handleClose, onLoginSuccess }) {
   const isLogin = view === VIEWS.LOGIN;
   const isVendor = !isPrivate;
 
+  // --- Tailwind Form Classes ---
+  const formInputClasses = (hasError = false) => {
+    return `block w-full rounded-md shadow-sm sm:text-sm ${
+        hasError ? 'border-red-500' : 'border-gray-300'
+    } focus:ring-[${OLIVE_THEME.main}] focus:border-[${OLIVE_THEME.main}]`;
+  };
+  const formLabelClasses = "block text-sm font-medium text-gray-700";
+
   return (
     <>
       {/* Backdrop */}
-      <div className="modal-backdrop fade show"
-        style={{ backgroundColor: '#011F4B', opacity: 0.9 }}
-        onClick={handleClose} />
+      <div 
+        className="fixed inset-0 z-40 animate-in fade-in-0 duration-300"
+        style={{ backgroundColor: 'rgba(40, 50, 10, 0.85)' }} // Dark Olive backdrop
+        onClick={handleClose} 
+      />
 
       {/* Modal */}
-      <div className="modal fade show d-block" tabIndex="-1" style={{ overflowY: 'auto' }}>
-        <div className="modal-dialog modal-dialog-centered modal-md">
-          <div className="modal-content p-4" style={{ borderRadius: '8px' }}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full p-6 sm:p-8 animate-in fade-in-0 zoom-in-95 duration-300">
 
-            {/* Close button (Standard Bootstrap) */}
-            <button 
-              type="button" 
-              className="btn-close position-absolute top-0 end-0 m-3" 
-              onClick={handleClose}
-              aria-label="Close"
-            ></button>
+          {/* Close button */}
+          <button 
+            type="button" 
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={handleClose}
+            aria-label="Close"
+          >
+            <FontAwesomeIcon icon={faTimes} size="lg" />
+          </button>
 
+          {/* Header */}
+          <div className="text-center mb-5 mt-2">
+            <h2 className="text-3xl font-bold" style={{ color: OLIVE_THEME.dark }}>
+              VETRICART
+            </h2>
+            <h5 className="mt-3 text-sm font-semibold uppercase text-gray-400 tracking-wider">
+              {isRegister ? 'Create Your Account' : 'Welcome Back'}
+            </h5>
+          </div>
 
-            {/* Header */}
-            <div className="text-center mb-4 mt-3">
-              <h2 className="mb-0 fw-bold" style={{ color: '#0055A0' }}>
-                MEGACART <span style={{ color: '#62AA46' }}>{'>'}</span>
-              </h2>
-              <h5 className="mt-3 text-uppercase text-muted small">{isRegister ? 'Register' : 'Login'}</h5>
+          {/* Message */}
+          {message && (
+            <div className={`p-3 rounded-md mb-4 text-sm ${
+              message.type === 'error' 
+              ? 'bg-red-100 border border-red-300 text-red-800' 
+              : `border`
+            }`}
+            style={{
+              backgroundColor: message.type === 'success' ? OLIVE_THEME.light : undefined,
+              borderColor: message.type === 'success' ? OLIVE_THEME.main : undefined,
+              color: message.type === 'success' ? OLIVE_THEME.dark : undefined,
+            }}
+            >
+              {message.text}
+            </div>
+          )}
+
+          {/* Private/Business Toggle */}
+          {isRegister && (
+            <div className="flex w-full max-w-xs mx-auto mb-5 p-1 rounded-full" style={{ backgroundColor: OLIVE_THEME.light }}>
+              <button 
+                type="button" 
+                className={`w-1/2 py-2 text-sm font-semibold rounded-full transition-all ${isPrivate ? 'bg-white shadow' : 'text-gray-600'}`}
+                onClick={() => setIsPrivate(true)}
+                style={{ color: isPrivate ? OLIVE_THEME.dark : undefined }}
+              >
+                Private
+              </button>
+              <button 
+                type="button" 
+                className={`w-1/2 py-2 text-sm font-semibold rounded-full transition-all ${!isPrivate ? 'bg-white shadow' : 'text-gray-600'}`}
+                onClick={() => setIsPrivate(false)}
+                style={{ color: !isPrivate ? OLIVE_THEME.dark : undefined }}
+              >
+                Business
+              </button>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className={formLabelClasses}>Email</label>
+              <input type="email" className={formInputClasses()} value={email} onChange={e => setEmail(e.target.value)} required />
             </div>
 
-            {/* Message */}
-            {message && (
-              <div className={`alert alert-${message.type === 'error' ? 'danger' : 'success'} mb-4`}>
-                {message.text}
+            <div>
+              <label className={formLabelClasses}>Password</label>
+              <div className="relative">
+                <input 
+                  type={passwordVisible ? 'text' : 'password'} 
+                  className={`${formInputClasses()} pr-10`}
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  required 
+                />
+                <button 
+                  type="button"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  onClick={() => setPasswordVisible(!passwordVisible)}
+                >
+                  <FontAwesomeIcon icon={faEye} />
+                </button>
               </div>
-            )}
+            </div>
 
-            {/* Private/Business Toggle */}
             {isRegister && (
-              <div className="btn-group w-100 w-md-75 mx-auto mb-4 p-1 bg-light border" style={{ borderRadius: '25px', borderColor: '#e0e0e0ff' }} role="group">
-                <button type="button" className={`btn btn-sm ${isPrivate ? 'bg-white shadow-sm fw-bold' : 'btn-light text-muted'}`} onClick={() => setIsPrivate(true)} style={{ borderRadius: '25px' }}>Private</button>
-                <button type="button" className={`btn btn-sm ${!isPrivate ? 'bg-white shadow-sm fw-bold' : 'btn-light text-muted'}`} onClick={() => setIsPrivate(false)} style={{ borderRadius: '25px' }}>Business</button>
-              </div>
+              <>
+                <div>
+                  <label className={formLabelClasses}>Confirm Password</label>
+                  <input 
+                    type="password" 
+                    className={formInputClasses(password !== confirmPassword && confirmPassword.length > 0)} 
+                    value={confirmPassword} 
+                    onChange={e => setConfirmPassword(e.target.value)} 
+                    required 
+                  />
+                  {password !== confirmPassword && confirmPassword.length > 0 && (
+                    <small className="text-red-600">Passwords must match.</small>
+                  )}
+                </div>
+
+                {isVendor && (
+                  <div>
+                    <label className={formLabelClasses}>Store Name (Will be your Username)</label>
+                    <input type="text" className={formInputClasses()} value={storeName} onChange={e => setStoreName(e.target.value)} required />
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Form */}
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label className="form-label small text-muted">Email</label>
-                <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label small text-muted">Password</label>
-                <div className="input-group">
-                  <input type={passwordVisible ? 'text' : 'password'} className="form-control border-end-0" value={password} onChange={e => setPassword(e.target.value)} required />
-                  <span className="input-group-text bg-white border-start-0" style={{ cursor: 'pointer' }} onClick={() => setPasswordVisible(!passwordVisible)}>
-                    <FontAwesomeIcon icon={faEye} className="text-muted" />
-                  </span>
-                </div>
-              </div>
-
-              {isRegister && (
-                <>
-                  <div className="mb-3">
-                    <label className="form-label small text-muted">Confirm Password</label>
-                    <input type="password" className="form-control" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-                    {password !== confirmPassword && confirmPassword.length > 0 && (
-                      <small className="text-danger">Passwords must match.</small>
-                    )}
-                  </div>
-
-                  {isVendor && (
-                    <div className="mb-3">
-                      <label className="form-label small text-muted">Store Name (Will be your Username)</label>
-                      <input type="text" className="form-control" value={storeName} onChange={e => setStoreName(e.target.value)} required />
-                    </div>
-                  )}
-                </>
+            <button 
+              type="submit" 
+              className="w-full flex justify-center items-center py-3 px-4 text-white font-bold rounded-md shadow-sm transition-colors duration-200 disabled:bg-gray-400"
+              style={{ 
+                backgroundColor: OLIVE_THEME.main,
+                '--hover-bg': OLIVE_THEME.dark
+              }}
+              onMouseOver={e => e.currentTarget.style.backgroundColor = OLIVE_THEME.dark}
+              onMouseOut={e => e.currentTarget.style.backgroundColor = OLIVE_THEME.main}
+              disabled={isLoading}
+            > 
+              {isLoading ? (
+                <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+              ) : (
+                isRegister ? 'Register Account' : 'Log in'
               )}
+            </button>
 
-              <button type="submit" className="btn w-100 py-2 mb-3"
-                style={{
-                  backgroundColor: '#62AA46',
-                  color: 'white',
-                  fontWeight: 'bold'
+            <p className="text-center text-sm text-gray-600">
+              {isLogin
+                ? <>Don't have an account? </>
+                : <>Already registered? </>}
+              <a 
+                href="#" 
+                onClick={e => { 
+                  e.preventDefault(); 
+                  setView(isLogin ? VIEWS.REGISTER : VIEWS.LOGIN); 
+                  setEmail(''); 
+                  setPassword(''); 
+                  setMessage(null); 
                 }}
-                disabled={isLoading}> 
-                {isLoading ? <span className="spinner-border spinner-border-sm me-2"></span> : isRegister ? 'Register Account' : 'Log in'}
-              </button>
-
-              <p className="text-center small">
-                {isLogin
-                  ? <>Don't have an account? <a href="#" onClick={e => { e.preventDefault(); setView(VIEWS.REGISTER); setEmail(''); setPassword(''); setMessage(null); }}>Register</a></>
-                  : <>Already registered? <a href="#" onClick={e => { e.preventDefault(); setView(VIEWS.LOGIN); setEmail(''); setPassword(''); setMessage(null); }}>Log in</a></>}
-              </p>
-            </form>
-          </div>
+                className="font-medium hover:underline"
+                style={{ color: OLIVE_THEME.main }}
+              >
+                {isLogin ? 'Register' : 'Log in'}
+              </a>
+            </p>
+          </form>
         </div>
       </div>
     </>

@@ -1,118 +1,121 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProvider, useUser } from './context/UserContext.jsx'; 
 import { CartProvider } from './context/CartContext.jsx'; 
-import Navbar from './components/Navbar.jsx';
-import CheckoutPage from './components/CheckoutPage.jsx'; 
-import ProductList from './components/ProductLists.jsx';
-import Footer from './components/Footer.jsx'; 
-import ProductDetails from './components/ProductDetails.jsx';
-import LoginFormModal from './components/LoginFormModal.jsx'; 
-import CartPage from './components/CartPage.jsx'; 
-import MyOrdersPage from './components/MyOrdersPage.jsx'; 
-import AboutUs from './pages/AboutUs';
-import WorkWithUs from './pages/WorkWithUs';
-import Help from './pages/Help.jsx';
-import CustomerSupport from './pages/CustomerSupport';
-import Foundation from './pages/Foundations.jsx';
+import { Spinner } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './components/ProductLists.css'; 
-import MyPage from './components/MyPage'; 
+
+import Navbar from './components/Navbar.jsx';
+import Footer from './components/Footer.jsx';
+import ProductList from './components/ProductLists.jsx';
+import ProductDetails from './components/ProductDetails.jsx';
+import CartPage from './components/CartPage.jsx'; 
+import CheckoutPage from './components/CheckoutPage.jsx'; 
+import LoginFormModal from './components/LoginFormModal.jsx'; 
+import MyOrdersPage from './components/MyOrdersPage.jsx'; 
+import MyPage from './components/MyPage.jsx';
 import SearchPage from './components/SearchPage.jsx'; 
+
 import VendorDashboard from './components/VendorDashboard.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import ProductCreateForm from './components/ProductCreateForm.jsx';
-import ProductEditForm from './components/ProductEditForm.jsx'; 
-
-
-// 1. ✅ IMPORT THE NEW COMPONENT
+import ProductEditForm from './components/ProductEditForm.jsx';
 import VendorStorefrontPage from './components/VendorStorefrontPage.jsx';
 
+import AboutUs from './pages/AboutUs.jsx';
+import WorkWithUs from './pages/WorkWithUs.jsx';
+import CustomerSupport from './pages/CustomerSupport.jsx';
+import Help from './pages/Help.jsx';
+import Foundation from './pages/Foundations.jsx';
+
+// ✅ Shop and Category Pages
+import ShopPage from './pages/ShopPage.jsx';
+import CategoryPage from './pages/CategoryPage.jsx';
+
+// --- Admin Route Wrapper ---
 const AdminRoute = ({ children }) => {
     const { user, loading } = useUser();
 
-    if (loading) {
-        return <Spinner animation="border" />; // Show loading while user is being checked
-    }
+    if (loading) return <Spinner animation="border" />;
 
-    if (user && user.role === 'ADMIN') {
-        return children; // If user is admin, show the admin dashboard
-    }
+    if (user && user.role === 'ADMIN') return children;
 
-    // If not admin (or not logged in), send them away
-    return <Navigate to="/" replace />; 
+    return <Navigate to="/" replace />;
 };
 
-// Helper component to access UserContext within the Router
+// --- AppContent: main app routes ---
 function AppContent() {
     const [showLoginModal, setShowLoginModal] = useState(false);
-
-    // 🛑 We no longer need the trigger state, but we need the login function
-    const { login } = useUser(); 
+    const { login } = useUser();
 
     const handleLoginSuccess = (loggedInUser) => {
-        // This updates the global UserContext state
-        login(loggedInUser); 
-        setShowLoginModal(false); 
+        login(loggedInUser);
+        setShowLoginModal(false);
     };
 
     return (
         <div className="App" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            
-            <Navbar onLoginClick={() => setShowLoginModal(true)} /> 
+            <Navbar onLoginClick={() => setShowLoginModal(true)} />
 
-            <main className="app-content-area" style={{ flex: 1 }}> 
+            <main className="app-content-area" style={{ flex: 1 }}>
                 <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<ProductList onLoginClick={() => setShowLoginModal(true)} />} />
-                    
-                    {/* ProductDetails no longer needs the trigger prop */}
+                    <Route path="/shop" element={<ShopPage />} />
                     <Route path="/product/:id" element={<ProductDetails />} />
-                    
-                    <Route path="/cart" element={<CartPage />} /> 
-                    <Route path="/checkout" element={<CheckoutPage />} /> 
-                     <Route path="/about-us" element={<AboutUs />} />
-        <Route path="/careers" element={<WorkWithUs />} />
-        <Route path="/support" element={<CustomerSupport />} />
-        <Route path="/foundation" element={<Foundation />} />
-        <Route path="/help" element={<Help/>} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    <Route path="/cart" element={<CartPage />} />
+                    <Route path="/checkout" element={<CheckoutPage />} />
+                    <Route path="/about-us" element={<AboutUs />} />
+                    <Route path="/careers" element={<WorkWithUs />} />
+                    <Route path="/support" element={<CustomerSupport />} />
+                    <Route path="/foundation" element={<Foundation />} />
+                    <Route path="/help" element={<Help />} />
 
+                    {/* Category Route */}
+<Route path="/category/:categoryName" element={<CategoryPage />} />
+                    {/* Admin Route */}
+                    <Route 
+                        path="/admin/dashboard" 
+                        element={
+                            <AdminRoute>
+                                <AdminDashboard />
+                            </AdminRoute>
+                        } 
+                    />
 
                     {/* User Account Routes */}
                     <Route path="/my-orders" element={<MyOrdersPage onLoginClick={() => setShowLoginModal(true)} />} />
                     <Route path="/my-page" element={<MyPage onLoginClick={() => setShowLoginModal(true)} />} />
                     <Route path="/search" element={<SearchPage />} />
 
-                    {/* VENDOR MANAGEMENT ROUTES */}
+                    {/* Vendor Routes */}
                     <Route path="/vendor/dashboard" element={<VendorDashboard />} />
-                    {/* <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
                     <Route path="/vendor/products/new" element={<ProductCreateForm />} />
                     <Route path="/vendor/products/edit/:id" element={<ProductEditForm />} />
                     <Route path="/vendor/:vendorId" element={<VendorStorefrontPage />} />
-                    
 
-                    
+                    {/* Catch-all route (optional) */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </main>
-                
+
             <Footer />
 
             <LoginFormModal 
                 show={showLoginModal} 
                 handleClose={() => setShowLoginModal(false)} 
-                onLoginSuccess={handleLoginSuccess}
+                onLoginSuccess={handleLoginSuccess} 
             />
         </div>
     );
 }
 
-// Main App component wraps everything in context providers
+// --- Main App: wrap providers ---
 function App() {
     return (
         <UserProvider> 
             <CartProvider>
-                <Router> 
+                <Router>
                     <AppContent />
                 </Router>
             </CartProvider>
