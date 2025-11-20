@@ -79,15 +79,15 @@ function LoginDropdown({ onLoginClick }) {
                             >
                                 Log in
                             </button>
-                            <p className="mt-3 mb-4 text-center text-sm text-[#556B2F]">
-                                Don't have an account?{' '}
-                                <button
+                            <p className="mt-3 mb-4 text-center text-sm text-[#556B2F] font-bold">
+                                {/* Don't have an account?{' '} */} Welcome to VetriCart
+                                {/* <button
                                     className="font-bold bg-transparent border-none p-0"
                                     style={{ color: THEME_OLIVE }}
                                     onClick={handleLoginCtaClick}
                                 >
                                     Register here
-                                </button>
+                                </button> */}
                             </p>
                         </>
                     ) : (

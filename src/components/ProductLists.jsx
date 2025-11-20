@@ -315,7 +315,7 @@ function ProductList({ onLoginClick }) {
                         data-bs-ride="carousel"
                         data-bs-interval="3000"
                     >
-                        <div className="carousel-indicators">
+                        {/* <div className="carousel-indicators">
                             {bannerData.map((_, index) => (
                                 <button
                                     key={index}
@@ -327,7 +327,7 @@ function ProductList({ onLoginClick }) {
                                     aria-label={`Slide ${index + 1}`}
                                 ></button>
                             ))}
-                        </div>
+                        </div> */}
 
                         <div className="carousel-inner">
                             {bannerData.map((banner, index) => (
