@@ -248,7 +248,7 @@ function CheckoutPage() {
         name: user?.username || '',
         street: '', 
         city: '',
-        country: 'India',
+        country: 'India', // ✅ Locked to India
         phone: ''
     });
     const [isEditingAddress, setIsEditingAddress] = useState(true); 
@@ -318,11 +318,18 @@ function CheckoutPage() {
         if (!shippingAddress.street.trim()) errors.street = "Street address is required.";
         if (!shippingAddress.city.trim()) errors.city = "City / Zip Code is required.";
         
-        const phoneRegex = /^\d{10}$/;
+        // ✅ STRICT INDIAN PHONE VALIDATION
+        // Starts with 6, 7, 8, or 9 and followed by 9 digits
+        const indianPhoneRegex = /^[6-9]\d{9}$/;
+        
         if (!shippingAddress.phone.trim()) {
             errors.phone = "Phone number is required.";
-        } else if (!phoneRegex.test(shippingAddress.phone.trim())) {
-            errors.phone = "Please enter a valid 10-digit phone number.";
+        } else if (!indianPhoneRegex.test(shippingAddress.phone.trim())) {
+            errors.phone = "Invalid number. Must be 10 digits and start with 6-9.";
+        }
+        
+        if (shippingAddress.country.trim().toLowerCase() !== 'india') {
+             errors.country = "We only ship to India.";
         }
         
         setAddressErrors(errors);
@@ -349,7 +356,7 @@ function CheckoutPage() {
                 address: shippingAddress.street,
                 city: shippingAddress.city,
                 zip: shippingAddress.city, 
-                country: shippingAddress.country
+                country: 'India' // ✅ Force backend to save as India
             };
 
             const response = await fetch(USER_ADDRESS_SAVE_URL, {
@@ -379,7 +386,15 @@ function CheckoutPage() {
     
     const handleAddressChange = (e) => {
         const { name, value } = e.target;
-        setShippingAddress(prev => ({ ...prev, [name]: value }));
+        
+        // ✅ RESTRICT PHONE INPUT TO NUMBERS ONLY & MAX 10 DIGITS
+        if (name === 'phone') {
+            const numericValue = value.replace(/\D/g, '').slice(0, 10);
+            setShippingAddress(prev => ({ ...prev, [name]: numericValue }));
+        } else {
+            setShippingAddress(prev => ({ ...prev, [name]: value }));
+        }
+
         if (addressErrors[name]) setAddressErrors(prev => ({ ...prev, [name]: null }));
         setAddressSuccess(null);
         if (addressErrors.form) setAddressErrors(prev => ({ ...prev, form: null }));
@@ -522,15 +537,19 @@ function CheckoutPage() {
                                             {addressErrors.name && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.name}</p>}
                                         </div>
                                         <div>
-                                            <label htmlFor="formPhone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                                            <input 
-                                                type="tel" id="formPhone" name="phone" required placeholder="9876543210"
-                                                value={shippingAddress.phone} onChange={handleAddressChange} 
-                                                className={inputClass(addressErrors.phone)}
-                                                style={{ borderColor: addressErrors.phone ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
-                                                onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
-                                                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-                                            />
+                                            <label htmlFor="formPhone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number (India)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium border-r pr-2 text-sm">+91</span>
+                                                <input 
+                                                    type="tel" id="formPhone" name="phone" required placeholder="9876543210"
+                                                    value={shippingAddress.phone} onChange={handleAddressChange} 
+                                                    className={`${inputClass(addressErrors.phone)} pl-12`} // Added left padding for +91
+                                                    style={{ borderColor: addressErrors.phone ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
+                                                    onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
+                                                    onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                                                    maxLength="10" // Limit to 10 digits
+                                                />
+                                            </div>
                                             {addressErrors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.phone}</p>}
                                         </div>
                                     </div>
@@ -564,13 +583,12 @@ function CheckoutPage() {
                                         <div>
                                             <label htmlFor="formCountry" className="block text-sm font-medium text-gray-700 mb-1">Country</label>
                                             <input 
-                                                type="text" id="formCountry" name="country" required 
-                                                value={shippingAddress.country} onChange={handleAddressChange} 
-                                                className={inputClass(false)}
-                                                style={{ outlineColor: OLIVE_THEME.main }}
-                                                onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
-                                                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                                                type="text" id="formCountry" name="country" 
+                                                value="India" // ✅ HARDCODED
+                                                readOnly // ✅ READ ONLY
+                                                className="mt-1 block w-full rounded-lg bg-gray-100 text-gray-500 shadow-sm sm:text-sm py-2.5 px-3 border border-gray-300 cursor-not-allowed"
                                             />
+                                            {addressErrors.country && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.country}</p>}
                                         </div>
                                     </div>
                                     
@@ -594,7 +612,7 @@ function CheckoutPage() {
                                     </div>
                                     <div className="border rounded-xl p-4 md:p-5 bg-gray-50 text-gray-700 text-sm leading-relaxed relative">
                                         <div className="font-bold text-gray-900 text-base mb-1">{shippingAddress.name}</div>
-                                        <div className="mb-2">{shippingAddress.phone}</div>
+                                        <div className="mb-2">+91 {shippingAddress.phone}</div>
                                         <div className="text-gray-600">{shippingAddress.street}, {shippingAddress.city}, {shippingAddress.country}</div>
                                         
                                         <button 
