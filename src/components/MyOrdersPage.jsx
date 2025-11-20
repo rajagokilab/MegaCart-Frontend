@@ -360,6 +360,7 @@ function ExpandedOrderDetails({ order, isMobile }) {
                     alt={item.product?.name}
                     className="w-12 h-12 object-cover rounded border border-gray-200"
                   />
+                  
                   <div>
                     <p className="font-semibold text-sm text-gray-800 line-clamp-1">
                       {item.product?.name || "Product Unavailable"}
