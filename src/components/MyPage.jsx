@@ -599,41 +599,169 @@ function MyPage({ onLoginClick }) {
         );
     };
 
-    const renderProductManagement = () => {
+   const renderProductManagement = () => {
         const filteredProducts = vendorProducts.filter(p => {
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch = p.name.toLowerCase().includes(searchLower);
             const matchesStatus = filterStatus === 'ALL' || p.status === filterStatus;
             return matchesSearch && matchesStatus;
         });
-        const sortedProducts = [...filteredProducts].sort((a, b) => { if (sortOrder === 'newest') return b.id - a.id; return a.id - b.id; });
+
+        const sortedProducts = [...filteredProducts].sort((a, b) => {
+            if (sortOrder === 'newest') return b.id - a.id;
+            return a.id - b.id;
+        });
 
         return (
             <div>
                 <h3 className="text-3xl font-bold mb-4" style={{ color: OLIVE_THEME.text }}>Product Management</h3>
-                <div className="flex flex-wrap justify-between items-center mb-4"> <ThemeButton onClick={() => handleProductAction('add')}> <FontAwesomeIcon icon={faPlus} className="mr-2" /> Add Product </ThemeButton> </div>
-                <RenderSearchFilterBar placeholder="Search product name..." statusOptions={[ { value: 'PENDING', label: 'Pending' }, { value: 'APPROVED', label: 'Approved' }, { value: 'REJECTED', label: 'Rejected' } ]} />
+                
+                <div className="flex flex-wrap justify-between items-center mb-4">
+                    <ThemeButton onClick={() => handleProductAction('add')}>
+                        <FontAwesomeIcon icon={faPlus} className="mr-2" /> Add Product
+                    </ThemeButton>
+                </div>
+
+                <RenderSearchFilterBar 
+                    placeholder="Search product name..." 
+                    statusOptions={[
+                        { value: 'PENDING', label: 'Pending' },
+                        { value: 'APPROVED', label: 'Approved' },
+                        { value: 'REJECTED', label: 'Rejected' }
+                    ]}
+                />
+                
                 {productsLoading && renderSpinner("Loading Products...")}
                 {productsError && <div className="p-4 rounded-md bg-red-100 text-red-700">{productsError}</div>}
                 
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <ul className="divide-y divide-gray-200">
-                        {sortedProducts.length === 0 ? ( <li className="p-4 text-gray-500">No products found matching filters.</li> ) : (
-                            sortedProducts.map(p => {
-                                const isLocked = p.status === 'APPROVED';
-                                return (
-                                    <li key={p.id} className="p-4 flex flex-wrap justify-between items-center hover:bg-gray-50 transition-colors">
-                                        <div> <span className="font-medium text-gray-900">{p.name}</span> <span className={`px-2 py-0.5 text-xs font-semibold rounded-full text-white ${ p.status === "APPROVED" ? 'bg-green-600' : p.status === "PENDING" ? 'bg-yellow-500' : 'bg-red-600' }`}>{p.status}</span> | ₹{parseFloat(p.price).toFixed(2)} </div>
-                                        <div className="flex-shrink-0 ml-0 sm:ml-4 space-x-2 mt-2 sm:mt-0">
-                                            <ThemeButton onClick={() => handleProductAction('edit', p.id)} variant="secondary" disabled={isLocked} className={isLocked ? "opacity-50 cursor-not-allowed" : ""} title={isLocked ? "Approved products cannot be edited" : "Edit Product"} > <FontAwesomeIcon icon={faPencilAlt} className="mr-1"/> Edit </ThemeButton>
-                                            <ThemeButton onClick={() => handleProductAction('delete', p.id)} variant="danger"> <FontAwesomeIcon icon={faTrash} className="mr-1"/> Delete </ThemeButton>
-                                        </div>
-                                    </li>
-                                );
-                            })
-                        )}
-                    </ul>
-                </div>
+                {!productsLoading && !productsError && (
+                    <div className="overflow-x-auto bg-white rounded-lg shadow-lg border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preview</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name / Category</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    {/* ✅ NEW COLUMN HEADER */}
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th> 
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {sortedProducts.length === 0 && (
+                                    <tr>
+                                        <td colSpan="8" className="p-4 text-center text-gray-500">No products found matching your filters.</td>
+                                    </tr>
+                                )}
+                                {sortedProducts.map(p => {
+                                    const isLocked = p.status === 'APPROVED';
+                                    const stockCount = parseInt(p.stock || 0);
+                                    const isLowStock = stockCount > 0 && stockCount < 5;
+                                    const isOutOfStock = stockCount === 0;
+
+                                    return (
+                                        <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                                            {/* 1. Image Preview */}
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <img 
+                                                    src={p.image_url || 'https://via.placeholder.com/50'} 
+                                                    alt={p.name} 
+                                                    className="h-12 w-12 rounded object-cover border border-gray-200"
+                                                />
+                                            </td>
+
+                                            {/* 2. Name & Category */}
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="font-medium text-gray-900">{p.name}</div>
+                                                <div className="text-xs text-gray-500">{p.category_name || 'Uncategorized'}</div>
+                                            </td>
+
+                                            {/* 3. Price */}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                ₹{parseFloat(p.price).toFixed(2)}
+                                            </td>
+
+                                            {/* 4. Stock with Warning Logic */}
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <span className={`font-semibold ${isOutOfStock ? 'text-red-600' : (isLowStock ? 'text-orange-500' : 'text-gray-700')}`}>
+                                                        {stockCount}
+                                                    </span>
+                                                    {isLowStock && (
+                                                        <span className="ml-2 text-orange-500 text-xs bg-orange-100 px-2 py-0.5 rounded-full font-bold" title="Low Stock">
+                                                            Low
+                                                        </span>
+                                                    )}
+                                                    {isOutOfStock && (
+                                                        <span className="ml-2 text-red-600 text-xs bg-red-100 px-2 py-0.5 rounded-full font-bold" title="Out of Stock">
+                                                            Empty
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            {/* 5. Approval Status */}
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                                                    p.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 
+                                                    (p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')
+                                                }`}>
+                                                    {p.status}
+                                                </span>
+                                            </td>
+
+                                            {/* 6. ✅ NEW COLUMN: Published Status */}
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    {p.is_published ? (
+                                                        <span className="flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                                            <FontAwesomeIcon icon={faEye} className="mr-1" /> Live
+                                                        </span>
+                                                    ) : (
+                                                        <span className="flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                                                            <FontAwesomeIcon icon={faEyeSlash} className="mr-1" /> Hidden
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            {/* 7. Date Created */}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {new Date(p.created_at).toLocaleDateString()}
+                                            </td>
+
+                                            {/* 8. Actions */}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <div className="flex space-x-2">
+                                                    <ThemeButton 
+                                                        onClick={() => handleProductAction('edit', p.id)} 
+                                                        variant="secondary" 
+                                                        disabled={isLocked} 
+                                                        className={`!px-2 !py-1 !text-xs ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                        title={isLocked ? "Approved products cannot be edited" : "Edit Product"}
+                                                    >
+                                                        <FontAwesomeIcon icon={faPencilAlt} /> Edit
+                                                    </ThemeButton>
+                                                    <ThemeButton 
+                                                        onClick={() => handleProductAction('delete', p.id)} 
+                                                        variant="danger"
+                                                        className="!px-2 !py-1 !text-xs"
+                                                        title="Delete Product"
+                                                    >
+                                                        <FontAwesomeIcon icon={faTrash} />
+                                                    </ThemeButton>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         );
     };
