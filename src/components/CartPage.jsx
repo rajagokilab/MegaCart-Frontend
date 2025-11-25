@@ -231,7 +231,7 @@ function CartPage() {
 
           {/* RIGHT COLUMN: Order Summary (Sticky) */}
           <div className="lg:w-1/3">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-20">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
 
               <div className="space-y-3 mb-6">

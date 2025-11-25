@@ -42,7 +42,7 @@ function WorkWithUs() {
                 <div className="text-center mb-10 sm:mb-12">
                     {/* Responsive Text Size: 4xl on mobile, 5xl on medium screens and up */}
                     <h1 className="text-4xl md:text-5xl font-extrabold mb-3" style={{ color: THEME_COLOR }}>
-                        Join the MegaCart Team 🤝
+                        Join the VetriCart Team 🤝
                     </h1>
                     <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto px-2">
                         We are a growing e-commerce platform dedicated to sustainability and quality. Join us in building a greener future!

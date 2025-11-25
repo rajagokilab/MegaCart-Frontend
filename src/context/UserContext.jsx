@@ -1,38 +1,48 @@
-// src/context/UserContext.jsx
+import React, { createContext, useState, useContext, useEffect } from 'react';
+// Ensure this path points to your actual auth.js file
+import { getCachedUser, setSessionData, logout as authLogout } from '../components/auth'; 
 
-import React, { createContext, useState, useContext } from 'react';
-// 1. Import your auth functions
-import { getCachedUser, logout as authLogout } from '../components/auth'; 
-
-// 2. Create the Context (This was missing the export)
 export const UserContext = createContext();
 
-// 3. Create a custom hook to use the context easily
 export const useUser = () => {
     return useContext(UserContext);
 };
 
-// 4. Create the Provider component
 export const UserProvider = ({ children }) => {
-    // 5. THE FIX: Initialize state from the cache, NOT null
-    const [user, setUser] = useState(getCachedUser()); 
+    // 1. LAZY INITIALIZATION (The Fix for Refresh Issue)
+    // React runs getCachedUser() immediately before the first render.
+    const [user, setUser] = useState(() => getCachedUser());
 
-    // Function to handle login (saves user data)
-    const login = (userData) => {
-        // We assume the login API call already saved to localStorage
+    // 2. LOGIN FUNCTION
+    // We accept the token here to ensure Storage and State stay in sync
+    const login = (userData, token, refreshToken) => {
+        // Save to sessionStorage (via auth.js)
+        setSessionData(token, userData, refreshToken); 
+        // Update React State
         setUser(userData);
     };
 
-    // Function to handle logout (clears cache AND state)
+    // 3. LOGOUT FUNCTION
     const logout = () => {
-        authLogout(); // 👈 Clears localStorage
-        setUser(null);  // 👈 Clears context state
+        authLogout(); // Clears sessionStorage
+        setUser(null);  // Clears context state
     };
 
-    // Value exposed to all consuming components
+    // 4. SYNC WITH AUTH.JS (The Fix for 401 Auto-Logout)
+    // If the Axios Interceptor in auth.js triggers a logout, 
+    // this listener picks it up and updates the UI automatically.
+    useEffect(() => {
+        const handleAuthChange = () => {
+            setUser(getCachedUser());
+        };
+
+        window.addEventListener('authChanged', handleAuthChange);
+        return () => window.removeEventListener('authChanged', handleAuthChange);
+    }, []);
+
     const contextValue = {
         user,
-        isLoggedIn: !!user, // Convenience boolean
+        isLoggedIn: !!user,
         login,
         logout,
     };
@@ -43,3 +53,5 @@ export const UserProvider = ({ children }) => {
         </UserContext.Provider>
     );
 };
+
+export default UserContext;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import LoginDropdown from './LoginDropdown.jsx';
+import LoginFormModal from './LoginFormModal.jsx'; // <--- IMPORTED MODAL
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Modal, Button, Offcanvas } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -66,7 +67,6 @@ const customStyles = `
 
 // --- LOGO COMPONENT ---
 const Logo = () => (
-    // ✅ REMOVED 'ml-4' to ensure perfect centering on mobile
     <Link to="/" className="!no-underline flex items-center transition-transform hover:scale-105 duration-300 group relative">
         <img
             src={appLogo}
@@ -154,10 +154,14 @@ const SearchBar = ({
     );
 };
 
-function Navbar({ onLoginClick }) {
+function Navbar() {
     const [user, setUser] = useState(null);
     const { cartItems } = useCart();
+    
+    // --- MODAL STATES ---
     const [showStoreModal, setShowStoreModal] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false); // <--- LOGIN MODAL STATE
+
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const navigate = useNavigate();
@@ -175,12 +179,21 @@ function Navbar({ onLoginClick }) {
     const handleShowOffcanvas = () => setShowOffcanvas(true);
 
     useEffect(() => setUser(getCachedUser()), []);
+    
     useEffect(() => {
         const handleAuthChange = () => setUser(getCachedUser());
         window.addEventListener('authChanged', handleAuthChange);
         return () => window.removeEventListener('authChanged', handleAuthChange);
     }, []);
+
     useEffect(() => handleCloseOffcanvas(), [location]);
+
+    // --- LISTEN FOR PASSWORD RESET REDIRECT ---
+    useEffect(() => {
+        if (location.state?.openLogin) {
+            setShowLoginModal(true);
+        }
+    }, [location]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -249,7 +262,6 @@ function Navbar({ onLoginClick }) {
                     className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] border-b border-white/10 backdrop-blur-md
                     ${scrolled ? 'py-1 bg-[#7A8450]/95 supports-[backdrop-filter]:bg-[#7A8450]/80' : 'py-2 bg-[#7A8450]'}`}
                 >
-                    {/* ✅ Added 'relative' here to support absolute positioning of logo */}
                     <div className="container mx-auto px-4 lg:px-8 relative">
                         <div className="flex items-center justify-between h-12 lg:h-14">
 
@@ -263,11 +275,7 @@ function Navbar({ onLoginClick }) {
                                 </button>
                             </div>
 
-                            {/* ✅ LOGO POSITIONING LOGIC:
-                                1. max-[800px]:absolute -> Takes it out of flow on mobile
-                                2. left-1/2 -translate-x-1/2 -> Perfectly centers it
-                                3. min-[800px]:block -> Puts it back in flow on desktop
-                            */}
+                            {/* Logo Logic */}
                             <div className="
                                 flex-shrink-0 z-20 animate-in fade-in zoom-in duration-500
                                 max-[800px]:absolute max-[800px]:left-1/2 max-[800px]:top-1/2 max-[800px]:-translate-x-1/2 max-[800px]:-translate-y-1/2
@@ -280,7 +288,7 @@ function Navbar({ onLoginClick }) {
                             <div className="hidden lg:flex flex-1 items-center justify-center gap-8 mx-4">
                                 <div className="flex gap-8">
                                     <Link to="/shop" className={navLinkStyles}>Shop</Link>
-                                    <Link to="/about-us" className={navLinkStyles}>About</Link>
+                                    <Link to="/about-us" className={navLinkStyles}>Blog</Link>
                                 </div>
                                 
                                 <div className="ml-2">
@@ -306,7 +314,8 @@ function Navbar({ onLoginClick }) {
 
                                 <div className="hidden md:block hover:-translate-y-0.5 transition-transform duration-300">
                                     <div className="text-sm">
-                                        <LoginDropdown onLoginClick={onLoginClick} theme="dark" iconColor="white" />
+                                        {/* UPDATED: Opens internal modal */}
+                                        <LoginDropdown onLoginClick={() => setShowLoginModal(true)} theme="dark" iconColor="white" />
                                     </div>
                                 </div>
 
@@ -386,8 +395,9 @@ function Navbar({ onLoginClick }) {
 
                         <div className="p-4 bg-gray-50 border-t border-gray-200">
                             <div className="flex flex-col gap-3">
+                                {/* UPDATED: Opens internal modal */}
                                 <LoginDropdown 
-                                    onLoginClick={() => { handleCloseOffcanvas(); onLoginClick(); }} 
+                                    onLoginClick={() => { handleCloseOffcanvas(); setShowLoginModal(true); }} 
                                     theme="light" 
                                     customClass="w-full flex justify-center bg-white border border-gray-200 py-1.5 rounded-lg shadow-sm hover:shadow-md transition-all text-sm"
                                 />
@@ -422,6 +432,13 @@ function Navbar({ onLoginClick }) {
                         <Button variant="outline-secondary" size="sm" onClick={() => setShowStoreModal(false)}>Close</Button>
                     </Modal.Footer>
                 </Modal>
+
+                {/* --- LOGIN FORM MODAL (Rendered Here) --- */}
+                <LoginFormModal 
+                    show={showLoginModal} 
+                    handleClose={() => setShowLoginModal(false)} 
+                />
+
             </header>
 
             {/* Spacer Div */}

@@ -21,6 +21,9 @@ import AdminDashboard from './components/AdminDashboard.jsx';
 import ProductCreateForm from './components/ProductCreateForm.jsx';
 import ProductEditForm from './components/ProductEditForm.jsx';
 import VendorStorefrontPage from './components/VendorStorefrontPage.jsx';
+import ResetPassword from './components/ResetPassword'; 
+import ResetPasswordConfirm from './components/ResetPasswordConfirm'; // Import the new file// adjust path if needed
+
 
 import AboutUs from './pages/AboutUs.jsx';
 import WorkWithUs from './pages/WorkWithUs.jsx';
@@ -70,6 +73,10 @@ function AppContent() {
                     <Route path="/support" element={<CustomerSupport />} />
                     <Route path="/foundation" element={<Foundation />} />
                     <Route path="/help" element={<Help />} />
+                    <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
+                    <Route path="/reset-password/:uid/:token" element={<ResetPasswordConfirm />} />
+
+                    
 
                     {/* Category Route */}
 <Route path="/category/:categoryName" element={<CategoryPage />} />

@@ -7,7 +7,6 @@ import { useUser } from '../context/UserContext.jsx';
 // Olive theme colors
 const THEME_OLIVE = '#556B2F';
 const THEME_OLIVE_HOVER = '#4A5D27';
-const THEME_WHITE = '#ffffff';
 
 function LoginDropdown({ onLoginClick }) {
     const { user, logout } = useUser();
@@ -49,7 +48,7 @@ function LoginDropdown({ onLoginClick }) {
 
     return (
         <div
-            className="relative text-center"
+            className="relative text-center z-50" // Added z-50 for better visibility
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             onClick={(e) => e.stopPropagation()}
@@ -69,6 +68,7 @@ function LoginDropdown({ onLoginClick }) {
                     onMouseEnter={handleMouseEnter}
                 >
                     {!user ? (
+                        // --- GUEST VIEW (Not Logged In) ---
                         <>
                             <button
                                 className="w-full py-2 rounded-md font-bold text-white"
@@ -80,23 +80,44 @@ function LoginDropdown({ onLoginClick }) {
                                 Log in
                             </button>
                             <p className="mt-3 mb-4 text-center text-sm text-[#556B2F] font-bold">
-                                {/* Don't have an account?{' '} */} Welcome to VetriCart
-                                {/* <button
-                                    className="font-bold bg-transparent border-none p-0"
-                                    style={{ color: THEME_OLIVE }}
-                                    onClick={handleLoginCtaClick}
-                                >
-                                    Register here
-                                </button> */}
+                                Welcome to VetriCart
                             </p>
                         </>
                     ) : (
+                        // --- LOGGED IN VIEW ---
                         <>
                             <p className="text-sm text-center mb-2 text-[#556B2F]">
                                 Logged in as <strong>{user.username || user.email}</strong>
                             </p>
+
+                            <hr className="border-t my-2 border-gray-300" />
+
+                            {/* MENU LINKS (Only visible when logged in) */}
+                            <div className="mt-3 space-y-1 ">
+                                {[
+                                    { icon: faUserCircle, text: 'My page', path: '/my-page' },
+                                    { icon: faTruck, text: 'My Orders', path: '/my-orders' },
+                                ].map((item, index) => (
+                                    <Link
+                                        key={index}
+                                        to={item.path}
+                                        className="flex justify-between items-center p-2 rounded-md hover:bg-[#f0f5eb] text-[#556B2F] no-underline text-sm"
+                                        onClick={() => setIsOpen(false)}
+                                        style={{ textDecoration: 'none' }}
+                                    >
+                                        <div className="flex items-center">
+                                            <FontAwesomeIcon icon={item.icon} className="mr-3 w-5 text-[#556B2F]" />
+                                            <span>{item.text}</span>
+                                        </div>
+                                        <FontAwesomeIcon icon={faChevronRight} className="text-sm text-[#556B2F]" />
+                                    </Link>
+                                ))}
+                            </div>
+
+                            <hr className="border-t my-2 border-gray-300" />
+
                             <button
-                                className="w-full py-2 rounded-md font-bold text-white"
+                                className="w-full py-2 rounded-md font-bold text-white mt-2"
                                 style={{ backgroundColor: THEME_OLIVE }}
                                 onMouseOver={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE_HOVER}
                                 onMouseOut={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE}
@@ -106,29 +127,6 @@ function LoginDropdown({ onLoginClick }) {
                             </button>
                         </>
                     )}
-
-                    <hr className="border-t my-2 border-gray-300" />
-
-                    <div className="mt-3 space-y-1 ">
-                        {[
-                            { icon: faUserCircle, text: 'My page', path: '/my-page' },
-                            { icon: faTruck, text: 'My Orders', path: '/my-orders' },
-                        ].map((item, index) => (
-                            <Link
-                                key={index}
-                                to={item.path}
-                                className="flex justify-between items-center p-2 rounded-md hover:bg-[#f0f5eb] text-[#556B2F] no-underline text-sm"
-                                onClick={() => setIsOpen(false)}
-                                style={{ textDecoration: 'none' }} // Ensures no underline
-                            >
-                                <div className="flex items-center">
-                                    <FontAwesomeIcon icon={item.icon} className="mr-3 w-5 text-[#556B2F]" />
-                                    <span>{item.text}</span>
-                                </div>
-                                <FontAwesomeIcon icon={faChevronRight} className="text-sm text-[#556B2F]" />
-                            </Link>
-                        ))}
-                    </div>
                 </div>
             )}
         </div>

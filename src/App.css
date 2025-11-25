@@ -1,4 +1,4 @@
-#root {
+/* #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
@@ -39,24 +39,24 @@
 
 .read-the-docs {
   color: #888;
-}
+} */
 /* Light pista green theme */
-body {
-    background-color: #e6f2e6; /* very light pista green */
-    color: #2f4f2f; /* dark green text for readability */
-}
+/* body {
+    background-color: #e6f2e6; 
+    color: #2f4f2f; 
+} */
 
-.container {
+/* .container {
     padding-top: 2rem;
     padding-bottom: 2rem;
 }
 
 .card {
-    background-color: #f0fff0; /* lighter greenish card */
+    background-color: #f0fff0; 
     border: 1px solid #c3e6cb;
-}
+} */
 
-.card .card-body {
+/* .card .card-body {
     color: #2f4f2f;
 }
 
@@ -91,5 +91,5 @@ body {
     background-color: #d4edda;
     color: #2f4f2f;
     border-color: #c3e6cb;
-}
+} */
 

@@ -74,7 +74,7 @@ function CustomerSupport() {
                   className="text-lg font-medium hover:underline block break-all"
                   style={{ color: THEME_COLOR }}
                 >
-                  support@megacart.com
+                  support@vetricart.com
                 </a>
                 <p className="text-xs text-gray-500 mt-1">Response time: Within 24 hours</p>
               </div>

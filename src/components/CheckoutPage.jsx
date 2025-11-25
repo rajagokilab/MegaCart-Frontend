@@ -30,7 +30,7 @@ const calculateGrandTotal = (items) => {
 // --- Constants ---
 const API = import.meta.env.VITE_API_URL;
 const GUEST_CART_ID_KEY = 'guestCartId';
-const RAZORPAY_KEY_ID = 'rzp_test_Rc49M6OPR7fOLP'; 
+const RAZORPAY_KEY_ID = 'rzp_test_RjZJ90FopiN2Lo'; 
 const CART_DETAIL_URL = `${API}/cart/detail/`;
 const ORDER_CREATE_URL = `${API}/orders/create/`;
 const VERIFY_PAYMENT_URL = `${API}/orders/verify/`;
@@ -197,7 +197,7 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
                 {/* Modal Body */}
                 <div className="p-6">
                     <div className="text-center mb-6 p-5 rounded-lg border border-dashed" 
-                         style={{ backgroundColor: OLIVE_THEME.light, borderColor: OLIVE_THEME.dark }}>
+                          style={{ backgroundColor: OLIVE_THEME.light, borderColor: OLIVE_THEME.dark }}>
                         <h5 className="mb-2 font-semibold uppercase tracking-wider text-xs" style={{ color: OLIVE_THEME.dark }}>Total Amount Payable</h5>
                         <h1 className="font-bold text-4xl sm:text-5xl" style={{ color: OLIVE_THEME.main }}>
                             ₹{displayAmount}
@@ -248,6 +248,7 @@ function CheckoutPage() {
         name: user?.username || '',
         street: '', 
         city: '',
+        zip: '', // Added ZIP specific state
         country: 'India', // ✅ Locked to India
         phone: ''
     });
@@ -256,7 +257,6 @@ function CheckoutPage() {
     const [addressSuccess, setAddressSuccess] = useState(null); 
     const [isSavingAddress, setIsSavingAddress] = useState(false); 
 
-    // ... (Keep getCartHeaders and fetchCart logic same as provided) ...
     const getCartHeaders = () => {
         const headers = { 'Content-Type': 'application/json' };
         const authToken = getAuthToken();
@@ -312,20 +312,38 @@ function CheckoutPage() {
         return () => window.removeEventListener("authChanged", handleAuthChange);
     }, []);
 
+    // --- UPDATED VALIDATION LOGIC ---
     const validateAddress = () => {
         const errors = {};
-        if (!shippingAddress.name.trim()) errors.name = "Recipient name is required.";
-        if (!shippingAddress.street.trim()) errors.street = "Street address is required.";
-        if (!shippingAddress.city.trim()) errors.city = "City / Zip Code is required.";
         
-        // ✅ STRICT INDIAN PHONE VALIDATION
-        // Starts with 6, 7, 8, or 9 and followed by 9 digits
-        const indianPhoneRegex = /^[6-9]\d{9}$/;
+        if (!shippingAddress.name.trim()) {
+            errors.name = "Recipient name is required.";
+        } else if (shippingAddress.name.length < 3) {
+            errors.name = "Name must be at least 3 characters.";
+        }
+
+        if (!shippingAddress.street.trim()) {
+            errors.street = "Street address is required.";
+        }
+
+        if (!shippingAddress.city.trim()) {
+            errors.city = "City is required.";
+        }
+
+        // ✅ Indian PIN Code Validation
+        const pinCodeRegex = /^[1-9][0-9]{5}$/; // 6 digits, cannot start with 0
+        if (!shippingAddress.zip.trim()) {
+             errors.zip = "PIN Code is required.";
+        } else if (!pinCodeRegex.test(shippingAddress.zip.trim())) {
+             errors.zip = "Invalid PIN Code (6 digits required).";
+        }
         
+        // ✅ Strict Indian Phone Validation
+        const indianPhoneRegex = /^[6-9]\d{9}$/; // Starts with 6-9, followed by 9 digits
         if (!shippingAddress.phone.trim()) {
             errors.phone = "Phone number is required.";
         } else if (!indianPhoneRegex.test(shippingAddress.phone.trim())) {
-            errors.phone = "Invalid number. Must be 10 digits and start with 6-9.";
+            errors.phone = "Invalid Indian number. Must start with 6-9 and be 10 digits.";
         }
         
         if (shippingAddress.country.trim().toLowerCase() !== 'india') {
@@ -355,8 +373,8 @@ function CheckoutPage() {
                 phone: shippingAddress.phone,
                 address: shippingAddress.street,
                 city: shippingAddress.city,
-                zip: shippingAddress.city, 
-                country: 'India' // ✅ Force backend to save as India
+                zip: shippingAddress.zip, 
+                country: 'India' 
             };
 
             const response = await fetch(USER_ADDRESS_SAVE_URL, {
@@ -391,7 +409,13 @@ function CheckoutPage() {
         if (name === 'phone') {
             const numericValue = value.replace(/\D/g, '').slice(0, 10);
             setShippingAddress(prev => ({ ...prev, [name]: numericValue }));
-        } else {
+        } 
+        // ✅ RESTRICT PIN CODE TO NUMBERS ONLY & MAX 6 DIGITS
+        else if (name === 'zip') {
+            const numericValue = value.replace(/\D/g, '').slice(0, 6);
+            setShippingAddress(prev => ({ ...prev, [name]: numericValue }));
+        }
+        else {
             setShippingAddress(prev => ({ ...prev, [name]: value }));
         }
 
@@ -537,18 +561,20 @@ function CheckoutPage() {
                                             {addressErrors.name && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.name}</p>}
                                         </div>
                                         <div>
-                                            <label htmlFor="formPhone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number (India)</label>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium border-r pr-2 text-sm">+91</span>
-                                                <input 
-                                                    type="tel" id="formPhone" name="phone" required placeholder="9876543210"
-                                                    value={shippingAddress.phone} onChange={handleAddressChange} 
-                                                    className={`${inputClass(addressErrors.phone)} pl-12`} // Added left padding for +91
-                                                    style={{ borderColor: addressErrors.phone ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
-                                                    onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
-                                                    onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-                                                    maxLength="10" // Limit to 10 digits
-                                                />
+<label htmlFor="formPhone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number (India)</label>                                            <div className="relative">
+<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="text-gray-500 font-medium sm:text-sm border-r border-gray-300 pr-2 h-5 flex items-center">
+                +91
+            </span>
+        </div>                                               <input 
+            type="tel" id="formPhone" name="phone" required placeholder="9876543210"
+            value={shippingAddress.phone} onChange={handleAddressChange} 
+            className={`${inputClass(addressErrors.phone)} !pl-14`} 
+            style={{ borderColor: addressErrors.phone ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
+            onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
+            onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+            maxLength="10" 
+        />
                                             </div>
                                             {addressErrors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.phone}</p>}
                                         </div>
@@ -568,10 +594,11 @@ function CheckoutPage() {
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        {/* --- CITY --- */}
                                         <div>
-                                            <label htmlFor="formCity" className="block text-sm font-medium text-gray-700 mb-1">City / Zip Code</label>
+                                            <label htmlFor="formCity" className="block text-sm font-medium text-gray-700 mb-1">City</label>
                                             <input 
-                                                type="text" id="formCity" name="city" required 
+                                                type="text" id="formCity" name="city" required placeholder="e.g. Chennai"
                                                 value={shippingAddress.city} onChange={handleAddressChange} 
                                                 className={inputClass(addressErrors.city)}
                                                 style={{ borderColor: addressErrors.city ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
@@ -580,16 +607,32 @@ function CheckoutPage() {
                                             />
                                             {addressErrors.city && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.city}</p>}
                                         </div>
+
+                                        {/* --- PIN CODE (New) --- */}
                                         <div>
-                                            <label htmlFor="formCountry" className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                            <label htmlFor="formZip" className="block text-sm font-medium text-gray-700 mb-1">PIN Code</label>
                                             <input 
-                                                type="text" id="formCountry" name="country" 
-                                                value="India" // ✅ HARDCODED
-                                                readOnly // ✅ READ ONLY
-                                                className="mt-1 block w-full rounded-lg bg-gray-100 text-gray-500 shadow-sm sm:text-sm py-2.5 px-3 border border-gray-300 cursor-not-allowed"
+                                                type="text" id="formZip" name="zip" required placeholder="110001"
+                                                value={shippingAddress.zip} onChange={handleAddressChange} 
+                                                className={inputClass(addressErrors.zip)}
+                                                style={{ borderColor: addressErrors.zip ? undefined : '#e5e7eb', outlineColor: OLIVE_THEME.main }}
+                                                onFocus={(e) => e.target.style.borderColor = OLIVE_THEME.main}
+                                                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                                                maxLength="6"
                                             />
-                                            {addressErrors.country && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.country}</p>}
+                                            {addressErrors.zip && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.zip}</p>}
                                         </div>
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="formCountry" className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                        <input 
+                                            type="text" id="formCountry" name="country" 
+                                            value="India" // ✅ HARDCODED
+                                            readOnly // ✅ READ ONLY
+                                            className="mt-1 block w-full rounded-lg bg-gray-100 text-gray-500 shadow-sm sm:text-sm py-2.5 px-3 border border-gray-300 cursor-not-allowed"
+                                        />
+                                        {addressErrors.country && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.country}</p>}
                                     </div>
                                     
                                     <button 
@@ -613,7 +656,11 @@ function CheckoutPage() {
                                     <div className="border rounded-xl p-4 md:p-5 bg-gray-50 text-gray-700 text-sm leading-relaxed relative">
                                         <div className="font-bold text-gray-900 text-base mb-1">{shippingAddress.name}</div>
                                         <div className="mb-2">+91 {shippingAddress.phone}</div>
-                                        <div className="text-gray-600">{shippingAddress.street}, {shippingAddress.city}, {shippingAddress.country}</div>
+                                        <div className="text-gray-600">
+                                            {shippingAddress.street}<br/>
+                                            {shippingAddress.city} - {shippingAddress.zip}<br/>
+                                            {shippingAddress.country}
+                                        </div>
                                         
                                         <button 
                                             onClick={() => setIsEditingAddress(true)}

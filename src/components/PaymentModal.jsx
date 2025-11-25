@@ -5,7 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { getAuthToken, getCachedUser } from './auth'; 
 import { useNavigate } from 'react-router-dom';
 
-const RAZORPAY_KEY_ID = 'rzp_test_Rc49M6OPR7fOLP'; 
+const RAZORPAY_KEY_ID = 'rzp_test_RjZJ90FopiN2Lo'; 
 const API = import.meta.env.VITE_API_URL;
 const ORDER_CREATE_URL = `${API}/orders/create/`;
 const VERIFY_PAYMENT_URL = `${API}/orders/verify/`;
@@ -63,7 +63,7 @@ function PaymentModal({ show, handleClose, grandTotal }) {
                 key: RAZORPAY_KEY_ID,
                 amount,
                 currency,
-                name: 'MegaCart E-commerce',
+                name: 'VetriCart E-commerce',
                 description: 'Order Payment',
                 order_id: razorpay_order_id,
                 handler: async function (response) {
