@@ -8,9 +8,9 @@ import {
   faShoppingBag, 
   faBolt, 
   faSpinner,
-  faLock,     // Added for Security Policy
-  faRocket,   // Added for Delivery Policy
-  faUndo      // Added for Return Policy
+  faLock,     
+  faRocket,   
+  faUndo      
 } from '@fortawesome/free-solid-svg-icons';
 import { useCart } from '../context/CartContext.jsx';
 import { getAuthToken } from './auth';
@@ -242,8 +242,27 @@ function ProductDetails() {
   
   const avgRating = product.average_rating ? parseFloat(product.average_rating).toFixed(1) : '';
   const reviewCount = product.reviews ? product.reviews.length : 0;
-  const unitPrice = parseFloat(product.price || 0);
-  const totalPrice = (unitPrice * quantity).toFixed(2);
+  
+  // --- ROBUST PRICE CALCULATION ---
+  const originalPrice = parseFloat(product.price || 0);
+  let sellingPrice = parseFloat(product.final_price || product.discounted_price || 0);
+  let discountPercent = parseFloat(product.discount_percentage || 0);
+
+  // Fallback: If API didn't give discounted price, but gave a %, calculate manually
+  if (sellingPrice === 0 && discountPercent > 0) {
+    sellingPrice = originalPrice - (originalPrice * (discountPercent / 100));
+  }
+
+  // Fallback: If still 0, it means no discount
+  if (sellingPrice === 0) sellingPrice = originalPrice;
+
+  // Calculate percent if missing but prices differ
+  if (discountPercent === 0 && originalPrice > sellingPrice) {
+      discountPercent = Math.round(((originalPrice - sellingPrice) / originalPrice) * 100);
+  }
+
+  const hasDiscount = originalPrice > sellingPrice;
+  const totalPrice = (sellingPrice * quantity).toFixed(2);
   const vendorId = product?.vendor;
 
 
@@ -315,8 +334,26 @@ function ProductDetails() {
             <span className="ml-2 text-sm text-gray-500">({reviewCount} reviews)</span>
           </div>
 
+          {/* --- PRICE SECTION --- */}
           <div className="my-6">
-            <h2 className="text-4xl font-bold" style={{ color: OLIVE_THEME.main }}>₹{unitPrice.toFixed(2)}</h2>
+            <div className="flex flex-wrap items-baseline gap-3">
+                {/* Final Selling Price */}
+                <h2 className="text-4xl font-bold" style={{ color: OLIVE_THEME.main }}>
+                    ₹{sellingPrice.toFixed(2)}
+                </h2>
+                
+                {/* Original Price & Discount Badge (Only if discounted) */}
+                {hasDiscount && (
+                    <>
+                        <span className="text-xl text-gray-400 line-through decoration-gray-400">
+                            ₹{originalPrice.toFixed(2)}
+                        </span>
+                        <span className="text-sm font-bold text-red-600 bg-red-100 px-2 py-1 rounded-full border border-red-200">
+                            {discountPercent}% OFF
+                        </span>
+                    </>
+                )}
+            </div>
             <p className="text-green-600 text-sm font-medium mt-1">In Stock • Ready to Ship</p>
           </div>
 
@@ -565,7 +602,25 @@ function ProductDetails() {
                 </div>
                 <div className="p-4">
                   <h6 className="font-bold text-gray-800 truncate mb-1 group-hover:text-[color:var(--hover-color)]" style={{ '--hover-color': OLIVE_THEME.main }}>{sugg.name}</h6>
-                  <p className="font-bold text-lg" style={{ color: OLIVE_THEME.main }}>₹{parseFloat(sugg.price || 0).toFixed(2)}</p>
+                  
+                  {/* --- UPDATED: Suggested Product Price Display --- */}
+                  <div className="flex flex-col items-start">
+                      {sugg.discount_percentage > 0 ? (
+                          <>
+                            <span className="font-bold text-lg" style={{ color: OLIVE_THEME.main }}>
+                                ₹{(parseFloat(sugg.price) - (parseFloat(sugg.price) * (sugg.discount_percentage / 100))).toFixed(2)}
+                            </span>
+                            <span className="text-xs text-gray-400 line-through">
+                                ₹{parseFloat(sugg.price).toFixed(2)}
+                            </span>
+                          </>
+                      ) : (
+                          <span className="font-bold text-lg" style={{ color: OLIVE_THEME.main }}>
+                              ₹{parseFloat(sugg.price || 0).toFixed(2)}
+                          </span>
+                      )}
+                  </div>
+
                   <div className="mt-2 flex items-center">
                     <div className="text-xs text-yellow-400 flex">
                       {sugg.average_rating ? renderStars(sugg.average_rating) : <span>New Arrival</span>}

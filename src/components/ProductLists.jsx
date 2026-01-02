@@ -488,10 +488,12 @@ function ProductList({ onLoginClick }) {
                             {currentProducts.map((product) => {
                                 const stock = parseInt(product.stock, 10) || 0;
                                 const isOutOfStock = stock <= 0;
-                                let discountPercent = 0;
-                                if (product.original_price && parseFloat(product.original_price) > parseFloat(product.price)) {
-                                    discountPercent = Math.round(((parseFloat(product.original_price) - parseFloat(product.price)) / parseFloat(product.original_price)) * 100);
-                                }
+                                
+                                // ✅ CORRECTED LOGIC: Backend 'price' is original, 'discounted_price' is selling
+                                const discountPercent = product.discount_percentage || 0;
+                                const hasDiscount = discountPercent > 0;
+                                const sellingPrice = parseFloat(product.discounted_price || product.price);
+                                const originalPrice = parseFloat(product.price);
 
                                 return (
                                     // **APPLYING 5-COLUMN LOGIC:** // 2 on small (col-6), 3 on medium (col-md-4), 4 on large (col-lg-3), 
@@ -500,8 +502,8 @@ function ProductList({ onLoginClick }) {
                                         <div className={`card h-100 product-card-main ${isOutOfStock ? 'opacity-75' : ''}`}>
                                             <div className="card-img-wrapper-main">
                                                 <div className="position-absolute top-0 start-0 m-1 d-flex flex-column gap-1 z-10">
-                                                    {discountPercent > 0 && !isOutOfStock && (
-                                                        <span className="badge bg-danger shadow-sm" style={{fontSize:'0.6rem'}}>{discountPercent}%</span>
+                                                    {hasDiscount && !isOutOfStock && (
+                                                        <span className="badge bg-danger shadow-sm" style={{fontSize:'0.6rem'}}>{discountPercent}% OFF</span>
                                                     )}
                                                 </div>
                                                 <img src={product.image_url || 'https://via.placeholder.com/400x300'} alt={product.name} className="card-img-top-main" />
@@ -521,7 +523,15 @@ function ProductList({ onLoginClick }) {
                                                 
                                                 <div className="d-flex align-items-center justify-content-between mt-auto mb-2">
                                                     <div className="d-flex flex-column">
-                                                        <span className="fw-bold" style={{color: '#333', fontSize: '0.9rem'}}><FontAwesomeIcon icon={faIndianRupeeSign} size="xs" />{parseFloat(product.price).toFixed(0)}</span>
+                                                        {/* --- UPDATED: Conditionally render Strikethrough Price --- */}
+                                                        {hasDiscount && (
+                                                            <small className="text-decoration-line-through text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                <FontAwesomeIcon icon={faIndianRupeeSign} size="xs" />{originalPrice.toFixed(0)}
+                                                            </small>
+                                                        )}
+                                                        <span className="fw-bold" style={{color: '#333', fontSize: '0.9rem'}}>
+                                                            <FontAwesomeIcon icon={faIndianRupeeSign} size="xs" />{sellingPrice.toFixed(0)}
+                                                        </span>
                                                     </div>
                                                     <button 
                                                         className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
@@ -603,6 +613,13 @@ function ProductList({ onLoginClick }) {
                     {bestSellers.map((product) => {
                         const stock = parseInt(product.stock, 10) || 0;
                         const isOutOfStock = stock <= 0;
+                        
+                        // ✅ CORRECTED LOGIC ALSO FOR BEST SELLERS
+                        const discountPercent = product.discount_percentage || 0;
+                        const hasDiscount = discountPercent > 0;
+                        const sellingPrice = parseFloat(product.discounted_price || product.price);
+                        const originalPrice = parseFloat(product.price);
+
                         return (
                             <div key={product.id} className="col-6 col-sm-6 col-md-3 col-lg-2">
                                 <div className="bs-card h-100 d-flex flex-column">
@@ -612,7 +629,18 @@ function ProductList({ onLoginClick }) {
                                     </div>
                                     <div className="text-center d-flex flex-column flex-grow-1 pt-3 px-1">
                                         <h6 className="fw-bold text-dark mb-1 text-truncate" style={{ fontSize: '0.85rem' }}>{product.name}</h6>
-                                        <div className="fw-bold mb-1" style={{ color: '#333', fontSize: '0.95rem' }}><FontAwesomeIcon icon={faIndianRupeeSign} size="xs" />{parseFloat(product.price).toFixed(2)}</div>
+                                        
+                                        <div className="d-flex justify-content-center align-items-center gap-2 mb-1">
+                                            {hasDiscount && (
+                                                <small className="text-decoration-line-through text-muted" style={{ fontSize: '0.75rem' }}>
+                                                    <FontAwesomeIcon icon={faIndianRupeeSign} size="xs" />{originalPrice.toFixed(0)}
+                                                </small>
+                                            )}
+                                            <div className="fw-bold" style={{ color: '#333', fontSize: '0.95rem' }}>
+                                                <FontAwesomeIcon icon={faIndianRupeeSign} size="xs" />{sellingPrice.toFixed(2)}
+                                            </div>
+                                        </div>
+
                                         <div className="mt-auto bs-action-row">
                                             <Link to={`/product/${product.id}`} className="btn bs-view-btn">View</Link>
                                             <button className="btn bs-cart-btn" onClick={() => handleAddToCart(product.id)} disabled={isOutOfStock}><FontAwesomeIcon icon={isOutOfStock ? faBan : faShoppingCart} /></button>

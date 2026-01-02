@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCloudUploadAlt, faSpinner, faBoxOpen, faTags, faMoneyBillWave, faLayerGroup } from '@fortawesome/free-solid-svg-icons';
-import { getAuthToken, logout } from '../components/auth.js';
+import { faCloudUploadAlt, faSpinner, faBoxOpen, faTags, faMoneyBillWave, faLayerGroup, faPercent } from '@fortawesome/free-solid-svg-icons';
+import { getAuthToken } from '../components/auth.js';
+
 const API = import.meta.env.VITE_API_URL;
 const PRODUCTS_URL = `${API}/products/`;
 const CATEGORIES_URL = `${API}/categories/`;
 
 function ProductCreateForm() {
     const navigate = useNavigate();
+    // 1. ✅ UPDATE: Added discount_price to state
     const [formData, setFormData] = useState({
-        name: '', price: '', stock: '', category: '', image: null 
+        name: '', 
+        price: '', 
+        discount_price: '', // New Field
+        stock: '', 
+        category: '', 
+        image: null 
     });
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -18,7 +25,7 @@ function ProductCreateForm() {
     const [categories, setCategories] = useState([]); 
     const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-    // 1. Fetch Categories
+    // Fetch Categories
     useEffect(() => {
         const fetchCategories = async () => {
             try {
@@ -42,7 +49,6 @@ function ProductCreateForm() {
         fetchCategories();
     }, []);
 
-    // 2. Auth Headers - IMPORTANT: Do NOT set Content-Type for FormData
     const getAuthHeaders = () => {
         const token = getAuthToken();
         const headers = {}; 
@@ -50,7 +56,6 @@ function ProductCreateForm() {
         return headers;
     };
 
-    // 3. Handle Inputs
     const handleChange = (e) => {
         if (e.target.name === 'image') {
             const file = e.target.files[0];
@@ -63,7 +68,6 @@ function ProductCreateForm() {
         }
     };
 
-    // 4. Handle Submit
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -74,9 +78,21 @@ function ProductCreateForm() {
                 throw new Error("Please fill all required fields.");
             }
 
+            // 2. ✅ UPDATE: Validation for Discount Price
+            const priceVal = parseFloat(formData.price);
+            const discountVal = parseFloat(formData.discount_price);
+
+            if (formData.discount_price && discountVal >= priceVal) {
+                throw new Error("Discount price must be lower than the regular price.");
+            }
+
             const payload = new FormData();
             payload.append('name', formData.name.trim());
             payload.append('price', formData.price);
+            // 3. ✅ UPDATE: Append discount_price if it exists
+            if (formData.discount_price) {
+                payload.append('discount_price', formData.discount_price);
+            }
             payload.append('stock', formData.stock);
             payload.append('category', formData.category);
             
@@ -84,18 +100,15 @@ function ProductCreateForm() {
                 payload.append('image', formData.image);
             }
 
-            console.log("Submitting payload..."); // Debug log
-
             const response = await fetch(PRODUCTS_URL, {
                 method: 'POST',
-                headers: getAuthHeaders(), // Let browser set multipart/form-data
+                headers: getAuthHeaders(),
                 body: payload,
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                console.error("Backend Error:", data); // Debug log
                 throw new Error(
                     data.name?.[0] || data.price?.[0] || data.stock?.[0] || 
                     data.image?.[0] || data.detail || "Failed to create product."
@@ -158,8 +171,9 @@ function ProductCreateForm() {
                             />
                         </div>
 
-                        {/* Price & Stock */}
-                        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                        {/* 4. ✅ UPDATE: Grid Layout for Price, Discount, Stock */}
+                        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
+                            {/* Regular Price */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     <FontAwesomeIcon icon={faMoneyBillWave} className="mr-2 text-[#7A8450]" /> Price (₹)
@@ -170,6 +184,20 @@ function ProductCreateForm() {
                                     placeholder="0.00"
                                 />
                             </div>
+
+                            {/* Discount Price Input */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <FontAwesomeIcon icon={faPercent} className="mr-2 text-red-500" /> Discount Price
+                                </label>
+                                <input
+                                    name="discount_price" type="number" step="0.01" value={formData.discount_price} onChange={handleChange}
+                                    className="block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-[#7A8450] focus:border-[#7A8450] sm:text-sm"
+                                    placeholder="Optional"
+                                />
+                            </div>
+
+                            {/* Stock */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     <FontAwesomeIcon icon={faTags} className="mr-2 text-[#7A8450]" /> Stock
@@ -177,7 +205,7 @@ function ProductCreateForm() {
                                 <input
                                     name="stock" type="number" required value={formData.stock} onChange={handleChange}
                                     className="block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-[#7A8450] focus:border-[#7A8450] sm:text-sm"
-                                    placeholder="Available units"
+                                    placeholder="Qty"
                                 />
                             </div>
                         </div>
@@ -218,7 +246,6 @@ function ProductCreateForm() {
                                                     <span>Upload a file</span>
                                                     <input id="file-upload" name="image" type="file" className="sr-only" accept="image/*" onChange={handleChange} />
                                                 </label>
-                                                {/* <p className="pl-1">or drag and drop</p> */}
                                             </div>
                                             <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
                                         </>

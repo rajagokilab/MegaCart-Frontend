@@ -1,132 +1,139 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faChevronRight, faUserCircle, faTruck } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faChevronRight, faUserCircle, faTruck, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 import { useUser } from '../context/UserContext.jsx';
 
 // Olive theme colors
-const THEME_OLIVE = '#556B2F';
-const THEME_OLIVE_HOVER = '#4A5D27';
+const THEME_OLIVE = '#7A8450';
+const THEME_OLIVE_HOVER = '#5F673C';
 
-function LoginDropdown({ onLoginClick }) {
+function LoginDropdown({ onLoginClick, theme = 'dark', customClass = '' }) {
     const { user, logout } = useUser();
     const [isOpen, setIsOpen] = useState(false);
-    const [timeoutId, setTimeoutId] = useState(null);
+    let timeoutId = null;
 
+    // Theme Logic: 'dark' means white text (for dark background), 'light' means olive text
+    const iconColor = theme === 'dark' ? 'text-white' : 'text-[#7A8450]';
+    const containerClass = theme === 'dark' ? '' : 'border border-gray-200 bg-white rounded-full p-2 shadow-sm';
+
+    // Desktop Hover Handlers
     const handleMouseEnter = () => {
-        if (window.innerWidth < 992) return;
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-            setTimeoutId(null);
+        if (window.innerWidth >= 992) {
+            if (timeoutId) clearTimeout(timeoutId);
+            setIsOpen(true);
         }
-        if (!isOpen) setIsOpen(true);
     };
 
     const handleMouseLeave = () => {
-        if (window.innerWidth < 992) return;
-        const id = setTimeout(() => setIsOpen(false), 300);
-        setTimeoutId(id);
+        if (window.innerWidth >= 992) {
+            timeoutId = setTimeout(() => setIsOpen(false), 300);
+        }
     };
 
-    const handleTriggerClick = () => {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-            setTimeoutId(null);
-        }
+    // Mobile/Click Handler
+    const toggleOpen = () => {
         setIsOpen(!isOpen);
     };
 
-    const handleLoginCtaClick = () => {
-        if (onLoginClick) onLoginClick();
+    const handleAction = (action) => {
         setIsOpen(false);
-    };
-
-    const handleLogout = () => {
-        logout();
-        setIsOpen(false);
+        if (action) action();
     };
 
     return (
         <div
-            className="relative text-center z-50" // Added z-50 for better visibility
+            className={`relative z-50 ${customClass}`}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            onClick={(e) => e.stopPropagation()}
         >
-            {/* Trigger Icon (white profile icon) */}
+            {/* 1. Backdrop for Mobile (Click outside to close) */}
+            {isOpen && (
+                <div 
+                    className="fixed inset-0 z-40 bg-transparent lg:hidden" 
+                    onClick={() => setIsOpen(false)}
+                ></div>
+            )}
+
+            {/* 2. Trigger Icon */}
             <div
-                className="flex items-center cursor-pointer"
-                onClick={handleTriggerClick}
+                className={`cursor-pointer flex items-center justify-center transition-transform active:scale-95 ${containerClass}`}
+                onClick={toggleOpen}
             >
-                <FontAwesomeIcon icon={faUser} className="text-xl text-white" />
+                <FontAwesomeIcon icon={faUser} className={`text-lg sm:text-xl ${iconColor}`} />
             </div>
 
-            {/* Dropdown Menu */}
+            {/* 3. Dropdown Menu */}
             {isOpen && (
                 <div
-                    className="absolute bg-white p-3 shadow-lg rounded-lg z-[100] top-full mt-2 right-0 w-full lg:w-[300px] lg:max-w-[300px] lg:-right-1/2"
-                    onMouseEnter={handleMouseEnter}
+                    className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden transform origin-top-right transition-all duration-200 animate-in fade-in zoom-in-95"
                 >
-                    {!user ? (
-                        // --- GUEST VIEW (Not Logged In) ---
-                        <>
-                            <button
-                                className="w-full py-2 rounded-md font-bold text-white"
-                                style={{ backgroundColor: THEME_OLIVE }}
-                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE_HOVER}
-                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE}
-                                onClick={handleLoginCtaClick}
-                            >
-                                Log in
-                            </button>
-                            <p className="mt-3 mb-4 text-center text-sm text-[#556B2F] font-bold">
-                                Welcome to VetriCart
-                            </p>
-                        </>
-                    ) : (
-                        // --- LOGGED IN VIEW ---
-                        <>
-                            <p className="text-sm text-center mb-2 text-[#556B2F]">
-                                Logged in as <strong>{user.username || user.email}</strong>
-                            </p>
+                    {/* Arrow tip */}
+                    <div className="absolute top-0 right-3 w-3 h-3 bg-white border-t border-l border-gray-100 transform rotate-45 -translate-y-1.5"></div>
 
-                            <hr className="border-t my-2 border-gray-300" />
-
-                            {/* MENU LINKS (Only visible when logged in) */}
-                            <div className="mt-3 space-y-1 ">
-                                {[
-                                    { icon: faUserCircle, text: 'My page', path: '/my-page' },
-                                    { icon: faTruck, text: 'My Orders', path: '/my-orders' },
-                                ].map((item, index) => (
-                                    <Link
-                                        key={index}
-                                        to={item.path}
-                                        className="flex justify-between items-center p-2 rounded-md hover:bg-[#f0f5eb] text-[#556B2F] no-underline text-sm"
-                                        onClick={() => setIsOpen(false)}
-                                        style={{ textDecoration: 'none' }}
-                                    >
-                                        <div className="flex items-center">
-                                            <FontAwesomeIcon icon={item.icon} className="mr-3 w-5 text-[#556B2F]" />
-                                            <span>{item.text}</span>
-                                        </div>
-                                        <FontAwesomeIcon icon={faChevronRight} className="text-sm text-[#556B2F]" />
-                                    </Link>
-                                ))}
+                    <div className="relative z-10 p-4">
+                        {!user ? (
+                            // --- GUEST VIEW ---
+                            <div className="text-center">
+                                <p className="text-sm text-gray-500 mb-3 font-medium">Welcome to VetriCart</p>
+                                <button
+                                    className="w-full py-2.5 rounded-lg font-bold text-white shadow-md transition-colors"
+                                    style={{ backgroundColor: THEME_OLIVE }}
+                                    onClick={() => handleAction(onLoginClick)}
+                                >
+                                    Log In / Sign Up
+                                </button>
                             </div>
+                        ) : (
+                            // --- LOGGED IN VIEW ---
+                            <div>
+                                <div className="text-center mb-3 border-b border-gray-100 pb-3">
+                                    <div className="w-10 h-10 bg-[#F0F2E9] rounded-full flex items-center justify-center mx-auto mb-2 text-[#7A8450]">
+                                        <FontAwesomeIcon icon={faUser} />
+                                    </div>
+                                    <p className="text-sm font-bold text-gray-800 truncate px-2">
+                                        {user.username || user.email}
+                                    </p>
+                                    <p className="text-xs text-[#7A8450] font-medium">{user.role || 'Customer'}</p>
+                                </div>
 
-                            <hr className="border-t my-2 border-gray-300" />
+                                <div className="space-y-1">
+                                    <Link
+                                        to="/my-page"
+                                        className="flex items-center justify-between p-2.5 rounded-lg hover:bg-[#F0F2E9] text-gray-700 transition-colors group no-underline"
+                                        onClick={() => setIsOpen(false)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <FontAwesomeIcon icon={faUserCircle} className="text-[#7A8450]" />
+                                            <span className="text-sm font-medium">My Profile</span>
+                                        </div>
+                                        <FontAwesomeIcon icon={faChevronRight} className="text-xs text-gray-400 group-hover:text-[#7A8450]" />
+                                    </Link>
 
-                            <button
-                                className="w-full py-2 rounded-md font-bold text-white mt-2"
-                                style={{ backgroundColor: THEME_OLIVE }}
-                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE_HOVER}
-                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = THEME_OLIVE}
-                                onClick={handleLogout}
-                            >
-                                Log out
-                            </button>
-                        </>
-                    )}
+                                    <Link
+                                        to="/my-orders"
+                                        className="flex items-center justify-between p-2.5 rounded-lg hover:bg-[#F0F2E9] text-gray-700 transition-colors group no-underline"
+                                        onClick={() => setIsOpen(false)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <FontAwesomeIcon icon={faTruck} className="text-[#7A8450]" />
+                                            <span className="text-sm font-medium">My Orders</span>
+                                        </div>
+                                        <FontAwesomeIcon icon={faChevronRight} className="text-xs text-gray-400 group-hover:text-[#7A8450]" />
+                                    </Link>
+                                </div>
+
+                                <div className="mt-3 pt-2 border-t border-gray-100">
+                                    <button
+                                        className="w-full flex items-center justify-center gap-2 py-2 text-sm text-red-500 font-medium hover:bg-red-50 rounded-lg transition-colors"
+                                        onClick={() => handleAction(logout)}
+                                    >
+                                        <FontAwesomeIcon icon={faSignOutAlt} /> Log Out
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

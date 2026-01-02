@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheckCircle, faTrashAlt, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { faCheckCircle, faTrashAlt, faArrowLeft, faIndianRupeeSign } from '@fortawesome/free-solid-svg-icons';
 import { useCart } from '../context/CartContext.jsx';
 
 // Define Theme Colors for consistency
@@ -20,14 +20,46 @@ function CartPage() {
     setSelectedItems(cartItems.map(item => item.id));
   }, [cartItems]);
 
-  // Compute total price
+  // --- HELPER: Robust Price & Discount Calculation ---
+  const getPriceDetails = (product) => {
+    // 1. "Price" from backend is the Original/MRP
+    const originalPrice = parseFloat(product.price || 0);
+    
+    // 2. Try to find the selling price from API fields
+    let sellingPrice = parseFloat(product.final_price || product.discounted_price || 0);
+    let discountPercent = parseFloat(product.discount_percentage || 0);
+
+    // 3. Fallback: If no selling price, calculate using percentage
+    if (sellingPrice === 0 && discountPercent > 0) {
+      sellingPrice = originalPrice - (originalPrice * (discountPercent / 100));
+    }
+
+    // 4. Fallback: If no discount found, Selling Price is same as Original
+    if (sellingPrice === 0) {
+      sellingPrice = originalPrice;
+    }
+
+    // 5. Final Calculation: Ensure we have a valid percentage for display
+    if (discountPercent === 0 && originalPrice > sellingPrice) {
+      discountPercent = Math.round(((originalPrice - sellingPrice) / originalPrice) * 100);
+    }
+
+    return {
+      originalPrice,
+      sellingPrice,
+      discountPercent: Math.round(discountPercent),
+      hasDiscount: sellingPrice < originalPrice
+    };
+  };
+
+  // --- Compute Total Price ---
   const totalPrice = useMemo(() => {
     return cartItems
       .filter(item => selectedItems.includes(item.id))
       .reduce((acc, item) => {
         const product = item.product_details || {};
-        const itemPrice = parseFloat(product.price || 0);
-        return acc + itemPrice * (item.quantity || 1);
+        const { sellingPrice } = getPriceDetails(product);
+        return acc + sellingPrice * (item.quantity || 1);
       }, 0);
   }, [cartItems, selectedItems]);
 
@@ -56,11 +88,21 @@ function CartPage() {
     }
   };
 
+  // --- UPDATED: Handle Checkout & Remove Items ---
   const handleCheckout = () => {
     if (selectedItems.length === 0) return alert('Please select at least one item.');
+    
+    // 1. Filter the items to be checked out
     const itemsToCheckout = cartItems.filter(item => selectedItems.includes(item.id));
-    itemsToCheckout.forEach(item => removeItemFromCart(item.product_details.id));
+    
+    // 2. Navigate to the checkout page, passing the items in state
     navigate('/checkout', { state: { checkoutItems: itemsToCheckout } });
+
+    // 3. Remove the selected items from the cart immediately
+    itemsToCheckout.forEach(item => {
+        const productId = item.product_details?.id || item.id;
+        removeItemFromCart(productId);
+    });
   };
 
   // --- Loading State ---
@@ -84,7 +126,7 @@ function CartPage() {
         <Link 
           to="/" 
           className="px-8 py-3 rounded-lg text-white font-semibold shadow-md transition-all hover:-translate-y-0.5"
-          style={{ backgroundColor: THEME_COLOR }}
+          style={{ backgroundColor: THEME_COLOR, textDecoration: 'none' }}
           onMouseOver={(e) => e.currentTarget.style.backgroundColor = THEME_HOVER}
           onMouseOut={(e) => e.currentTarget.style.backgroundColor = THEME_COLOR}
         >
@@ -99,7 +141,11 @@ function CartPage() {
         
         {/* Header / Breadcrumb */}
         <div className="mb-6">
-            <Link to="/" className="text-gray-500 hover:text-[#7A8450] text-sm flex items-center gap-2 mb-2">
+            <Link 
+              to="/" 
+              className="text-gray-500 hover:text-[#7A8450] text-sm flex items-center gap-2 mb-2"
+              style={{ textDecoration: 'none' }}
+            >
                 <FontAwesomeIcon icon={faArrowLeft} /> Back to Shopping
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
@@ -141,8 +187,9 @@ function CartPage() {
             <div className="space-y-4 mt-4">
               {cartItems.map((item) => {
                 const product = item.product_details || {};
-                const itemPrice = parseFloat(product.price || 0);
                 const productId = product.id || item.id;
+                
+                const { originalPrice, sellingPrice, discountPercent, hasDiscount } = getPriceDetails(product);
 
                 return (
                   <div 
@@ -150,7 +197,7 @@ function CartPage() {
                     className={`bg-white p-4 rounded-xl shadow-sm border transition-all duration-200 flex flex-col sm:flex-row gap-4
                       ${selectedItems.includes(item.id) ? 'border-gray-300' : 'border-transparent opacity-90'}`}
                   >
-                    {/* Mobile: Checkbox row */}
+                    {/* Checkbox */}
                     <div className="flex items-start sm:items-center">
                         <input
                         type="checkbox"
@@ -174,8 +221,8 @@ function CartPage() {
                     <div className="flex-grow flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-semibold text-gray-900 leading-tight hover:underline">
-                                <Link to={`/product/${productId}`} style={{ color: 'inherit' }}>
+                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">
+                                <Link to={`/product/${productId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
                                     {product.name || 'Product Name'}
                                 </Link>
                             </h3>
@@ -188,14 +235,30 @@ function CartPage() {
                         </p>
                       </div>
                       
-                      {/* Price (Mobile: shown below info, Desktop: part of flow) */}
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-xl font-bold" style={{ color: THEME_COLOR }}>₹{itemPrice.toFixed(2)}</span>
-                        <span className="text-sm text-gray-400 line-through">₹{(itemPrice * 1.15).toFixed(2)}</span>
+                      {/* Price Section */}
+                      <div className="mt-2 flex items-baseline gap-2 flex-wrap">
+                        {/* Selling Price (Bold) */}
+                        <span className="text-xl font-bold" style={{ color: THEME_COLOR }}>
+                            <FontAwesomeIcon icon={faIndianRupeeSign} size="xs" className="mr-1"/>
+                            {sellingPrice.toFixed(2)}
+                        </span>
+
+                        {/* Discount Info */}
+                        {hasDiscount && (
+                            <>
+                                <span className="text-sm text-gray-400 line-through">
+                                    <FontAwesomeIcon icon={faIndianRupeeSign} size="xs" className="mr-1"/>
+                                    {originalPrice.toFixed(2)}
+                                </span>
+                                <span className="text-xs font-bold text-green-600 border border-green-200 bg-green-50 px-2 py-0.5 rounded-full ml-1">
+                                    {discountPercent}% OFF
+                                </span>
+                            </>
+                        )}
                       </div>
                     </div>
 
-                    {/* Actions (Quantity & Remove) */}
+                    {/* Actions */}
                     <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start border-t sm:border-0 pt-4 sm:pt-0 gap-4">
                       <select
                         value={item.quantity}
@@ -229,7 +292,7 @@ function CartPage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Order Summary (Sticky) */}
+          {/* RIGHT COLUMN: Order Summary */}
           <div className="lg:w-1/3">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-20">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>

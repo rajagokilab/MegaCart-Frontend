@@ -7,7 +7,7 @@ import { getCachedUser, getAuthToken, logout } from './auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faLock, faCreditCard, faTruck, faUserCheck, faWallet, 
-  faMapMarkerAlt, faEdit, faSave, faTimes, faSpinner, faChevronLeft
+  faMapMarkerAlt, faEdit, faSave, faTimes, faSpinner, faChevronLeft, faRupeeSign
 } from '@fortawesome/free-solid-svg-icons'; 
 
 // --- THEME COLOR CONSTANTS ---
@@ -19,9 +19,32 @@ const OLIVE_THEME = {
 };
 
 // --- Helper Functions ---
+const getPriceForCalculation = (item) => {
+    // 1. Check if price was pre-calculated (e.g. from Buy Now)
+    let price = parseFloat(item.price || 0); 
+    
+    // 2. Check product details if structure differs
+    const product = item.product_details || item;
+    
+    // 3. Prioritize explicit discount fields from API if available
+    const discountedPrice = parseFloat(product.final_price || product.discounted_price || 0);
+    const originalPrice = parseFloat(product.price || 0);
+
+    if (discountedPrice > 0 && discountedPrice < originalPrice) {
+        return discountedPrice;
+    }
+    
+    // Fallback: If item.price exists and is lower than product.price, assume it's already discounted
+    if (price > 0 && price < originalPrice) {
+        return price;
+    }
+
+    return price > 0 ? price : originalPrice;
+};
+
 const calculateGrandTotal = (items) => {
     return items.reduce((sum, item) => {
-        const price = item.product_details?.price || 0;
+        const price = getPriceForCalculation(item);
         const quantity = item.quantity || 1;
         return sum + price * quantity;
     }, 0);
@@ -70,7 +93,7 @@ function PaymentModal({ show, handleClose, grandTotal, cartItems, setShowLogin, 
             if (authToken) headers['Authorization'] = `JWT ${authToken}`;
 
             const itemsPayload = cartItems.map(item => ({
-                id: item.product_details.id, 
+                id: item.product_details?.id || item.id, // Handle potential structure diff
                 quantity: item.quantity
             }));
 
@@ -248,8 +271,8 @@ function CheckoutPage() {
         name: user?.username || '',
         street: '', 
         city: '',
-        zip: '', // Added ZIP specific state
-        country: 'India', // ✅ Locked to India
+        zip: '', 
+        country: 'India', 
         phone: ''
     });
     const [isEditingAddress, setIsEditingAddress] = useState(true); 
@@ -302,7 +325,10 @@ function CheckoutPage() {
         };
 
         if (location.state?.checkoutItems) {
-            setCart({ items: location.state.checkoutItems, grand_total: calculateGrandTotal(location.state.checkoutItems) });
+            setCart({ 
+                items: location.state.checkoutItems, 
+                grand_total: calculateGrandTotal(location.state.checkoutItems) 
+            });
             setLoading(false);
         } else {
             fetchCart();
@@ -561,12 +587,12 @@ function CheckoutPage() {
                                             {addressErrors.name && <p className="mt-1 text-xs text-red-500 font-medium">{addressErrors.name}</p>}
                                         </div>
                                         <div>
-<label htmlFor="formPhone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number (India)</label>                                            <div className="relative">
+<label htmlFor="formPhone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number (India)</label>                                     <div className="relative">
 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="text-gray-500 font-medium sm:text-sm border-r border-gray-300 pr-2 h-5 flex items-center">
                 +91
             </span>
-        </div>                                               <input 
+        </div>                                         <input 
             type="tel" id="formPhone" name="phone" required placeholder="9876543210"
             value={shippingAddress.phone} onChange={handleAddressChange} 
             className={`${inputClass(addressErrors.phone)} !pl-14`} 
@@ -688,24 +714,43 @@ function CheckoutPage() {
                             <h4 className="text-xl font-bold text-gray-800 mb-6 pb-4 border-b border-gray-100">Order Summary</h4>
                             
                             <div className="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
-                                {cartItems.map(item => (
-                                <div key={item.id} className="flex items-center">
-                                    <div className="flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden w-16 h-16">
-                                        <img 
-                                            src={item.product_details?.image_url || 'https://placehold.co/60x60?text=Item'} 
-                                            alt={item.product_details?.name} 
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                    <div className="ml-4 flex-grow">
-                                        <div className="text-sm font-semibold text-gray-800 line-clamp-1">{item.product_details?.name}</div>
-                                        <div className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity}</div>
-                                    </div>
-                                    <div className="text-sm font-bold text-gray-900">
-                                        ₹{(item.total_price || item.quantity * item.product_details.price).toFixed(2)}
-                                    </div>
-                                </div>
-                                ))}
+                                {cartItems.map(item => {
+                                    // Robust Price Calculation for Summary
+                                    const product = item.product_details || item;
+                                    const finalPrice = getPriceForCalculation(item);
+                                    const originalPrice = parseFloat(product.price || 0);
+                                    const hasDiscount = originalPrice > finalPrice;
+                                    
+                                    return (
+                                        <div key={item.id} className="flex items-center">
+                                            <div className="flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden w-16 h-16">
+                                                <img 
+                                                    src={item.product_details?.image_url || 'https://placehold.co/60x60?text=Item'} 
+                                                    alt={item.product_details?.name} 
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                            <div className="ml-4 flex-grow">
+                                                <div className="text-sm font-semibold text-gray-800 line-clamp-1">{item.product_details?.name}</div>
+                                                <div className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity}</div>
+                                                
+                                                {/* Discounted Price Display in Summary */}
+                                                {hasDiscount && (
+                                                    <div className="text-xs mt-1">
+                                                        <span className="line-through text-gray-400 mr-2">₹{originalPrice.toFixed(2)}</span>
+                                                        <span className="text-green-600 font-bold">₹{finalPrice.toFixed(2)}</span>
+                                                    </div>
+                                                )}
+                                                {!hasDiscount && (
+                                                    <div className="text-xs font-bold text-gray-700 mt-1">₹{finalPrice.toFixed(2)}</div>
+                                                )}
+                                            </div>
+                                            <div className="text-sm font-bold text-gray-900">
+                                                ₹{(finalPrice * item.quantity).toFixed(2)}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                             
                             <div className="border-t border-gray-100 pt-4 space-y-3">
